@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>NRSC Farmer Advisor - REPORT</h2>
+
+    <h3>Farmer Details</h3>
+    <p>Name of the Farmer: {{ farmer.name }}</p>
+    <p>Farmer mobile number: {{ farmer.mobile }}</p>
+    <p>Village Name: {{ farmer.village }}</p>
+    <p>Mandal Name: {{ farmer.mandal }}</p>
+    <p>District Name: {{ farmer.district }}</p>
+
+    <h3>Crop & Soil Details</h3>
+    <p>GPS location: {{ crop.gps_location }}</p>
+    <p>Soil Type: {{ crop.soil_type }}</p>
+    <p>Crop: {{ crop.crop }}</p>
+    <p>Variety of the crop: {{ crop.variety }}</p>
+    <p>Season: {{ crop.season }}</p>
+    <p>Crop Duration (days): {{ crop.duration }}</p>
+    <p>Recommended N:P:K from Excel (kg/ha): {{ crop.recommended_npk }}</p>
+    <p>Date of Sowing selected by farmer: {{ crop.sowing_date }}</p>
+
+    <h3>Average of readings given by Sensor</h3>
+    <ul>
+        <li>Soil Nitrogen (N): {{ "%.2f"|format(averages.get("soil_n", 0)) }}</li>
+        <li>Soil Phosphorus (P): {{ "%.2f"|format(averages.get("soil_p", 0)) }}</li>
+        <li>Soil Potassium (K): {{ "%.2f"|format(averages.get("soil_k", 0)) }}</li>
+        <li>Soil Electrical Conductivity (EC): {{ "%.2f"|format(averages.get("ec", 0)) }}</li>
+        <li>Soil Temperature: {{ "%.2f"|format(averages.get("soil_temp", 0)) }}</li>
+        <li>Soil pH: {{ "%.2f"|format(averages.get("ph", 0)) }}</li>
+        <li>Soil Moisture: {{ "%.2f"|format(averages.get("soil_moisture", 0)) }}</li>
+        <li>Air Temperature: {{ "%.2f"|format(averages.get("air_temp", 0)) }}</li>
+        <li>Air Humidity: {{ "%.2f"|format(averages.get("air_humidity", 0)) }}</li>
+        <li>Water / Soil TDS: {{ "%.2f"|format(averages.get("tds", 0)) }}</li>
+    </ul>
+
+    <h3>Fertilizer Recommendation (STCR-based)</h3>
+    <p>Final N:P:K recommendation (kg/ha): {{ calculated.recommended_npk_after }}</p>
+    <p>Recommended dosage of N:P:K in commercial form of fertilizer:</p>
+    <p>{{ calculated.fertilizer_form }}</p>
+
+    <h3>Dates of basal dosage and top dressing of N:P:K</h3>
+    {% if fert_schedule %}
+        <table class="readings-table">
+            <thead>
+            <tr>
+                <th>Stage</th>
+                <th>DAS</th>
+                <th>Calendar Date</th>
+                <th>N (kg/ha)</th>
+                <th>P₂O₅ (kg/ha)</th>
+                <th>K₂O (kg/ha)</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for fs in fert_schedule %}
+                <tr>
+                    <td>{{ fs.stage }}</td>
+                    <td>{{ fs.das }}</td>
+                    <td>{{ fs.date }}</td>
+                    <td>{{ "%.2f"|format(fs.N) }}</td>
+                    <td>{{ "%.2f"|format(fs.P2O5) }}</td>
+                    <td>{{ "%.2f"|format(fs.K2O) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No fertilizer split schedule generated.</p>
+    {% endif %}
+
+    <h3>Irrigation scheduling</h3>
+    {% if irrigation_schedule %}
+        <p>Irrigation dates based on date of sowing:</p>
+        <ul>
+            {% for d in irrigation_schedule %}
+                <li>{{ d }}</li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No irrigation schedule generated.</p>
+    {% endif %}
+
+    <div class="button-row">
+        <a href="{{ url_for('download_pdf') }}" class="primary-btn">Download report (PDF)</a>
+        <a href="{{ url_for('download_word') }}" class="secondary-btn">Download report (Word)</a>
+    </div>
+</div>
+{% endblock %}

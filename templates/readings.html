@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>Soil & Environment Sensor Readings</h2>
+    <p>Reading {{ reading_no }} of {{ max_readings }}</p>
+
+    <div class="info-box">
+        <ol>
+            <li>Soil Nitrogen (N)</li>
+            <li>Soil Phosphorus (P)</li>
+            <li>Soil Potassium (K)</li>
+            <li>Soil Electrical Conductivity (EC)</li>
+            <li>Soil Temperature</li>
+            <li>Soil pH</li>
+            <li>Soil Moisture</li>
+            <li>Air Temperature</li>
+            <li>Air Humidity</li>
+            <li>Water / Soil TDS</li>
+        </ol>
+    </div>
+
+    <!-- Buttons to connect + read from ESP32 over Bluetooth -->
+    <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
+        <button type="button" id="btConnect" class="secondary-btn">
+            Connect to Sensor (Bluetooth)
+        </button>
+        <button type="button" id="btRead" class="secondary-btn" disabled>
+            Read values from Sensor
+        </button>
+        <span id="btStatus" style="align-self:center; font-size:0.9rem; color:#555;">
+            Not connected
+        </span>
+    </div>
+
+    <form method="post" class="form-grid">
+        <label>Soil Nitrogen (N)
+            <input type="number" step="0.01" name="soil_n" id="soil_n" value="">
+        </label>
+
+        <label>Soil Phosphorus (P)
+            <input type="number" step="0.01" name="soil_p" id="soil_p" value="">
+        </label>
+
+        <label>Soil Potassium (K)
+            <input type="number" step="0.01" name="soil_k" id="soil_k" value="">
+        </label>
+
+        <label>Soil Electrical Conductivity (EC)
+            <input type="number" step="0.01" name="ec" id="ec" value="">
+        </label>
+
+        <label>Soil Temperature (°C)
+            <input type="number" step="0.1" name="soil_temp" id="soil_temp" value="">
+        </label>
+
+        <label>Soil pH
+            <input type="number" step="0.01" name="ph" id="ph" value="">
+        </label>
+
+        <label>Soil Moisture (%)
+            <input type="number" step="0.1" name="soil_moisture" id="soil_moisture" value="">
+        </label>
+
+        <label>Air Temperature (°C)
+            <input type="number" step="0.1" name="air_temp" id="air_temp" value="">
+        </label>
+
+        <label>Air Humidity (%)
+            <input type="number" step="0.1" name="air_humidity" id="air_humidity" value="">
+        </label>
+
+        <label>Water / Soil TDS
+            <input type="number" step="0.1" name="tds" id="tds" value="">
+        </label>
+
+        <div class="button-row" style="margin-top:1.5rem;">
+            <button type="submit" name="save_reading" class="primary-btn">
+                Save this Reading
+            </button>
+            <button type="submit" name="reset_readings" class="secondary-btn">
+                Reset All Readings
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+// ================== WEB BLUETOOTH SETUP ==================
+
+// MUST match the ESP32 BLE sketch:
+const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+const CHARACTERISTIC_UUID = '12345678-1234-5678-1234-56789abcdef1';
+
+// Expect payload: "N,P,K,EC,SoilTemp,pH,Moisture,AirTemp,AirHumidity,TDS"
+let soilCharacteristic = null;
+
+const btConnectBtn = document.getElementById('btConnect');
+const btReadBtn = document.getElementById('btRead');
+const btStatus = document.getElementById('btStatus');
+
+function setStatus(msg) {
+    btStatus.textContent = msg;
+}
+
+btConnectBtn.addEventListener('click', async () => {
+    try {
+        if (!navigator.bluetooth) {
+            alert("Web Bluetooth is not supported in this browser. Use Chrome/Edge.");
+            return;
+        }
+
+        setStatus('Requesting Bluetooth device…');
+
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: [SERVICE_UUID] }]
+            // or use namePrefix if you prefer:
+            // filters: [{ namePrefix: 'NRSC_SoilMonitor' }]
+        });
+
+        setStatus('Connecting…');
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        soilCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+        btReadBtn.disabled = false;
+        setStatus('Connected. Click "Read values from Sensor".');
+
+        device.addEventListener('gattserverdisconnected', () => {
+            soilCharacteristic = null;
+            btReadBtn.disabled = true;
+            setStatus('Disconnected');
+        });
+    } catch (err) {
+        console.error(err);
+        alert('Bluetooth error: ' + err.message);
+        setStatus('Not connected');
+    }
+});
+
+btReadBtn.addEventListener('click', async () => {
+    if (!soilCharacteristic) {
+        alert('Sensor not connected yet.');
+        return;
+    }
+
+    try {
+        setStatus('Reading data from sensor…');
+        const value = await soilCharacteristic.readValue();
+
+        // value is a DataView; decode its underlying ArrayBuffer
+        const decoder = new TextDecoder('utf-8');
+        const text = decoder.decode(value.buffer || value);
+
+        console.log('Raw sensor payload:', text);
+
+        // Expected order from ESP32:
+        // N,P,K,EC,SoilTemp,pH,Moisture,AirTemp,AirHumidity,TDS
+        const parts = text.trim().split(',');
+
+        const [
+            n, p, k, ec,
+            soilTemp, ph, moisture,
+            airTemp, airHumidity, tds
+        ] = parts;
+
+        document.getElementById('soil_n').value        = n         ?? "";
+        document.getElementById('soil_p').value        = p         ?? "";
+        document.getElementById('soil_k').value        = k         ?? "";
+        document.getElementById('ec').value            = ec        ?? "";
+        document.getElementById('soil_temp').value     = soilTemp  ?? "";
+        document.getElementById('ph').value            = ph        ?? "";
+        document.getElementById('soil_moisture').value = moisture  ?? "";
+        document.getElementById('air_temp').value      = airTemp   ?? "";
+        document.getElementById('air_humidity').value  = airHumidity ?? "";
+        document.getElementById('tds').value           = tds       ?? "";
+
+        setStatus('Values filled from sensor. You can now click "Save this Reading".');
+    } catch (err) {
+        console.error(err);
+        alert('Error reading from sensor: ' + err.message);
+        setStatus('Read failed');
+    }
+});
+</script>
+{% endblock %}

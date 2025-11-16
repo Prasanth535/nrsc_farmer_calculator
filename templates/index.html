@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>WELCOME</h2>
+    <h3>NRSC Farmer Advisor</h3>
+    <p>Select your language:</p>
+
+    <form method="post" class="language-form">
+        <button type="submit" name="language" value="en">ENGLISH</button>
+        <button type="submit" name="language" value="te">TELUGU</button>
+        <button type="submit" name="language" value="hi">HINDI</button>
+    </form>
+</div>
+{% endblock %}

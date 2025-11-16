@@ -1,0 +1,138 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f3f5f7;
+    color: #222;
+}
+
+.header {
+    background: #004b8d;
+    color: #fff;
+    padding: 10px 20px;
+}
+
+.logo-title {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo {
+    height: 48px;
+    width: 48px;
+    object-fit: contain;
+}
+
+.content {
+    max-width: 900px;
+    margin: 20px auto 60px;
+    padding: 0 15px;
+}
+
+.footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #eee;
+    text-align: center;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: #555;
+}
+
+.card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px 25px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.card h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.language-form button,
+.primary-btn,
+.secondary-btn,
+.button-row a {
+    border: none;
+    padding: 10px 16px;
+    margin: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.language-form button,
+.primary-btn,
+.button-row a.primary-btn {
+    background: #004b8d;
+    color: #fff;
+}
+
+.secondary-btn,
+.button-row a.secondary-btn {
+    background: #e0e0e0;
+    color: #222;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 20px;
+}
+
+.form-grid label {
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+}
+
+.form-grid input,
+.form-grid select {
+    margin-top: 4px;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.button-row {
+    margin-top: 15px;
+}
+
+.info-box {
+    background: #f0f6ff;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.readings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.readings-table th,
+.readings-table td {
+    border: 1px solid #ccc;
+    padding: 4px 6px;
+    font-size: 12px;
+    text-align: center;
+}
+
+.center {
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>Crop & Soil Details</h2>
+
+    <form method="post" class="form-grid" id="cropForm">
+        <!-- GPS: fetched via browser, not typed -->
+        <label>GPS Enabled Location
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="gps_location" name="gps_location"
+                       value="{{ crop.get('gps_location', '') }}"
+                       placeholder="Latitude, Longitude"
+                       readonly>
+                <button type="button" id="getLocationBtn" class="secondary-btn">
+                    Get GPS
+                </button>
+            </div>
+        </label>
+
+        <label>Soil Type (Telangana)
+            <select name="soil_type" required>
+                <option value="">Select Soil Type</option>
+                {% for soil in telangana_soils %}
+                    <option value="{{ soil }}"
+                        {% if crop.get('soil_type') == soil %}selected{% endif %}>
+                        {{ soil }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <!-- Crop + variety (varieties depend on crop) -->
+        <label>Crop
+            <select name="crop" id="cropSelect" required>
+                <option value="">Select Crop</option>
+                {% for c in crops %}
+                    <option value="{{ c }}"
+                        {% if crop.get('crop') == c %}selected{% endif %}>
+                        {{ c }}
+                    </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Variety of crop
+            <select name="variety" id="varietySelect" required>
+                <option value="">Select Variety</option>
+                <!-- options will be filled by JS based on selected crop -->
+            </select>
+        </label>
+
+        <label>Season (from Excel)
+            <input type="text" id="season" value="{{ crop.get('season', '') }}" readonly>
+        </label>
+
+        <label>Crop Duration (days) (from Excel)
+            <input type="number" name="duration" id="duration"
+                   min="0" value="{{ crop.get('duration', '') }}" readonly>
+        </label>
+
+        <label>Recommended N:P:K (kg/ha) (from Excel)
+            <input type="text" name="recommended_npk" id="recommended_npk"
+                   value="{{ crop.get('recommended_npk', '') }}" readonly>
+        </label>
+
+        <label>Target yield for STCR (t/ha)
+            <input type="number" step="0.1" name="target_yield"
+                   value="{{ crop.get('target_yield', '') if crop.get('target_yield') is not none }}">
+            <small>If left blank, default target yield from STCR file will be used.</small>
+        </label>
+
+        <label>Select the Date of Sowing
+            <input type="date" name="sowing_date"
+                   value="{{ crop.get('sowing_date', '') }}" required>
+        </label>
+
+        <button type="submit" class="primary-btn">PROCEED TO TEST SOIL</button>
+    </form>
+</div>
+
+<script>
+// ---------- 1. Data from backend ----------
+const cropVarietyMap = {{ crop_variety_map|tojson|safe }};
+const cropInfoUrl = "{{ url_for('crop_info_api') }}";
+const initialCrop = "{{ crop.get('crop', '') }}";
+const initialVariety = "{{ crop.get('variety', '') }}";
+
+// ---------- 2. Dynamic GPS location ----------
+document.getElementById('getLocationBtn').addEventListener('click', function (e) {
+    e.preventDefault();
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        function (pos) {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lon = pos.coords.longitude.toFixed(6);
+            document.getElementById('gps_location').value = lat + ", " + lon;
+        },
+        function (err) {
+            alert("Unable to fetch location: " + err.message);
+        }
+    );
+});
+
+// ---------- 3. Populate varieties based on crop ----------
+const cropSelect = document.getElementById('cropSelect');
+const varietySelect = document.getElementById('varietySelect');
+
+function populateVarieties(cropName, selectedVariety) {
+    varietySelect.innerHTML = "";
+    const optDefault = document.createElement('option');
+    optDefault.value = "";
+    optDefault.textContent = "Select Variety";
+    varietySelect.appendChild(optDefault);
+
+    if (!cropName || !cropVarietyMap[cropName]) {
+        return;
+    }
+    cropVarietyMap[cropName].forEach(function (v) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        if (selectedVariety && selectedVariety === v) {
+            opt.selected = true;
+        }
+        varietySelect.appendChild(opt);
+    });
+}
+
+cropSelect.addEventListener('change', function () {
+    populateVarieties(this.value, null);
+    // clear season/duration/NPK when crop changes
+    document.getElementById('season').value = "";
+    document.getElementById('duration').value = "";
+    document.getElementById('recommended_npk').value = "";
+});
+
+// ---------- 4. Fetch season/duration/NPK once variety is chosen ----------
+function fetchCropInfo() {
+    const crop = cropSelect.value;
+    const variety = varietySelect.value;
+    if (!crop || !variety) return;
+
+    const url = cropInfoUrl + "?crop=" + encodeURIComponent(crop) +
+                "&variety=" + encodeURIComponent(variety);
+
+    fetch(url)
+        .then(resp => {
+            if (!resp.ok) throw new Error("No data found");
+            return resp.json();
+        })
+        .then(data => {
+            if (!data.ok) return;
+            document.getElementById('season').value = data.season || "";
+            document.getElementById('duration').value = data.duration || "";
+            document.getElementById('recommended_npk').value = data.recommended_npk || "";
+        })
+        .catch(err => {
+            console.error(err);
+            // optional: alert("Could not load crop info from Excel");
+        });
+}
+
+varietySelect.addEventListener('change', fetchCropInfo);
+
+// ---------- 5. On page load: init varieties + crop info ----------
+window.addEventListener('DOMContentLoaded', function () {
+    if (initialCrop) {
+        populateVarieties(initialCrop, initialVariety || null);
+        if (initialVariety) {
+            // already had selection -> ensure Excel values are correct
+            fetchCropInfo();
+        }
+    }
+});
+</script>
+{% endblock %}

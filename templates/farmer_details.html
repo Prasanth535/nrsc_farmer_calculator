@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>Farmer Details</h2>
+
+    <form method="post" class="form-grid">
+        <label>Enter Name
+            <input type="text" name="name" value="{{ farmer.get('name', '') }}" required>
+        </label>
+
+        <label>Enter Mobile Number
+            <input type="text" name="mobile" value="{{ farmer.get('mobile', '') }}" required>
+        </label>
+
+        <label>Enter Village Name
+            <input type="text" name="village" value="{{ farmer.get('village', '') }}" required>
+        </label>
+
+        <label>Enter Mandal Name
+            <input type="text" name="mandal" value="{{ farmer.get('mandal', '') }}" required>
+        </label>
+
+        <label>Enter District Name
+            <input type="text" name="district" value="{{ farmer.get('district', '') }}" required>
+        </label>
+
+        <button type="submit" class="primary-btn">PROCEED</button>
+    </form>
+</div>
+{% endblock %}
