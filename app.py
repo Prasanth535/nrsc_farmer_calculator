@@ -1,4 +1,3 @@
-import os
 from flask import (
     Flask,
     render_template,
@@ -11,6 +10,7 @@ from flask import (
 )
 from datetime import datetime, timedelta
 import io
+import os  # NEW: for PORT and SECRET_KEY
 
 from docx import Document
 from reportlab.pdfgen import canvas
@@ -18,7 +18,7 @@ from reportlab.pdfgen import canvas
 import pandas as pd
 
 app = Flask(__name__)
-# Use env var in production; fallback for local dev
+# Use environment variable in production; fallback for local dev
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
 
 # ================== FILE PATHS ==================
@@ -363,7 +363,7 @@ def index():
 
 @app.route("/farmer-details", methods=["GET", "POST"])
 def farmer_details():
-    if request.method == "POST"]:
+    if request.method == "POST":
         farmer = {
             "name": request.form.get("name", "").strip(),
             "mobile": request.form.get("mobile", "").strip(),
@@ -587,7 +587,7 @@ def calculate():
         final_p = min(rec_p, stcr_p) if rec_p > 0 else stcr_p
         final_k = min(rec_k, stcr_k) if rec_k > 0 else stcr_k
 
-    recommended_npk_after = f"{final_n:.2f}:{final_p:.2f}:{final_k:.2f}"
+    recommended_npk_after = f"{final_n:.2f}:{final_p:.2f}:{final_k:.2f}"""
     fertilizer_form = npk_to_fertilizer_form(final_n, final_p, final_k)
 
     calculated = {
@@ -812,9 +812,7 @@ def download_word():
     )
 
 
-# ================ ENTRY POINT =================
-
 if __name__ == "__main__":
-    # Render injects PORT; default 10000 for local dev
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # For local development
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
