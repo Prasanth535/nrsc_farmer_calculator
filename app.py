@@ -1,3 +1,4 @@
+import os
 from flask import (
     Flask,
     render_template,
@@ -17,7 +18,8 @@ from reportlab.pdfgen import canvas
 import pandas as pd
 
 app = Flask(__name__)
-app.secret_key = "CHANGE_THIS_SECRET_KEY"  # change in production
+# Use env var in production; fallback for local dev
+app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
 
 # ================== FILE PATHS ==================
 
@@ -361,7 +363,7 @@ def index():
 
 @app.route("/farmer-details", methods=["GET", "POST"])
 def farmer_details():
-    if request.method == "POST":
+    if request.method == "POST"]:
         farmer = {
             "name": request.form.get("name", "").strip(),
             "mobile": request.form.get("mobile", "").strip(),
@@ -637,7 +639,7 @@ def report():
     )
 
 
-# ---------- Download as PDF / Word (unchanged from earlier) ----------
+# ---------- Download as PDF / Word ----------
 
 @app.route("/download/pdf")
 def download_pdf():
@@ -810,5 +812,9 @@ def download_word():
     )
 
 
+# ================ ENTRY POINT =================
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Render injects PORT; default 10000 for local dev
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port, debug=False)
