@@ -1,3 +1,4 @@
+import os
 from flask import (
     Flask,
     render_template,
@@ -10,21 +11,29 @@ from flask import (
 )
 from datetime import datetime, timedelta
 import io
-import os  # NEW: for PORT and SECRET_KEY
 
 from docx import Document
 from reportlab.pdfgen import canvas
 
 import pandas as pd
 
+# ================== FLASK APP CONFIG ==================
+
 app = Flask(__name__)
-# Use environment variable in production; fallback for local dev
+
+# Use environment variable in production, fallback for local dev
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
+
+# Base directory of this file (for safe relative paths on Render, etc.)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================== FILE PATHS ==================
 
-CROP_EXCEL_PATH = "crop_variety_stcr.xlsx"   # crops, varieties, season, duration, Rec_N, Rec_P2O5, Rec_K2O
-STCR_CSV_PATH = "stcr_formulas.csv"         # crop-wise STCR formulas
+# crops, varieties, season, duration, Rec_N, Rec_P2O5, Rec_K2O
+CROP_EXCEL_PATH = os.path.join(BASE_DIR, "crop_variety_stcr.xlsx")
+
+# crop-wise STCR formulas
+STCR_CSV_PATH = os.path.join(BASE_DIR, "stcr_formulas.csv")
 
 
 # ================== LOAD CROP–VARIETY DATA FROM EXCEL ==================
@@ -812,7 +821,9 @@ def download_word():
     )
 
 
+# ================== MAIN (for local run) ==================
+
 if __name__ == "__main__":
-    # For local development
+    # Use PORT env var if set (useful when testing on platforms)
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
