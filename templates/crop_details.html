@@ -6,11 +6,11 @@
     <form method="post" class="form-grid" id="cropForm">
         <!-- GPS: fetched via browser, not typed -->
         <label>GPS Enabled Location
-            <div style="display:flex; gap:8px;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <input type="text" id="gps_location" name="gps_location"
                        value="{{ crop.get('gps_location', '') }}"
                        placeholder="Latitude, Longitude"
-                       readonly>
+                       readonly style="flex:1 1 auto;">
                 <button type="button" id="getLocationBtn" class="secondary-btn">
                     Get GPS
                 </button>
@@ -29,7 +29,6 @@
             </select>
         </label>
 
-        <!-- Crop + variety (varieties depend on crop) -->
         <label>Crop
             <select name="crop" id="cropSelect" required>
                 <option value="">Select Crop</option>
@@ -45,7 +44,6 @@
         <label>Variety of crop
             <select name="variety" id="varietySelect" required>
                 <option value="">Select Variety</option>
-                <!-- options will be filled by JS based on selected crop -->
             </select>
         </label>
 
@@ -115,9 +113,8 @@ function populateVarieties(cropName, selectedVariety) {
     optDefault.textContent = "Select Variety";
     varietySelect.appendChild(optDefault);
 
-    if (!cropName || !cropVarietyMap[cropName]) {
-        return;
-    }
+    if (!cropName || !cropVarietyMap[cropName]) return;
+
     cropVarietyMap[cropName].forEach(function (v) {
         const opt = document.createElement('option');
         opt.value = v;
@@ -131,7 +128,6 @@ function populateVarieties(cropName, selectedVariety) {
 
 cropSelect.addEventListener('change', function () {
     populateVarieties(this.value, null);
-    // clear season/duration/NPK when crop changes
     document.getElementById('season').value = "";
     document.getElementById('duration').value = "";
     document.getElementById('recommended_npk').value = "";
@@ -159,18 +155,16 @@ function fetchCropInfo() {
         })
         .catch(err => {
             console.error(err);
-            // optional: alert("Could not load crop info from Excel");
         });
 }
 
 varietySelect.addEventListener('change', fetchCropInfo);
 
-// ---------- 5. On page load: init varieties + crop info ----------
+// ---------- 5. On page load ----------
 window.addEventListener('DOMContentLoaded', function () {
     if (initialCrop) {
         populateVarieties(initialCrop, initialVariety || null);
         if (initialVariety) {
-            // already had selection -> ensure Excel values are correct
             fetchCropInfo();
         }
     }
