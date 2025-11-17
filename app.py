@@ -10,7 +10,7 @@ from flask import (
 )
 from datetime import datetime, timedelta
 import io
-import os  # <-- added
+import os
 
 from docx import Document
 from reportlab.pdfgen import canvas
@@ -18,19 +18,13 @@ from reportlab.pdfgen import canvas
 import pandas as pd
 
 app = Flask(__name__)
-
-# Use environment variable in production, fallback for local dev
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
 
-
 # ================== FILE PATHS ==================
+CROP_EXCEL_PATH = "crop_variety_stcr.xlsx"
+STCR_CSV_PATH = "stcr_formulas.csv"
 
-CROP_EXCEL_PATH = "crop_variety_stcr.xlsx"   # crops, varieties, season, duration, Rec_N, Rec_P2O5, Rec_K2O
-STCR_CSV_PATH = "stcr_formulas.csv"         # crop-wise STCR formulas
-
-
-# ================== LOAD CROP–VARIETY DATA FROM EXCEL ==================
-
+# ================== LOAD CROP–VARIETY DATA ==================
 try:
     crop_df = pd.read_excel(CROP_EXCEL_PATH)
 except Exception as e:
@@ -61,38 +55,28 @@ if "Crop" in crop_df.columns and "Variety" in crop_df.columns:
 
 
 def get_crop_row(crop_name, variety_name):
-    """Return row (dict) from Excel for (crop, variety) or None."""
     if crop_df.empty:
         return None
     crop_name = str(crop_name).strip()
     variety_name = str(variety_name).strip()
     sub = crop_df[
-        (crop_df["Crop"] == crop_name)
-        & (crop_df["Variety"] == variety_name)
+        (crop_df["Crop"] == crop_name) &
+        (crop_df["Variety"] == variety_name)
     ]
     if sub.empty:
-        # If no exact variety match, try crop only (first row)
         sub = crop_df[crop_df["Crop"] == crop_name]
         if sub.empty:
             return None
     return sub.iloc[0].to_dict()
 
-
-# ================== LOAD STCR FORMULAS FROM CSV ==================
-
+# ================== LOAD STCR FORMULAS ==================
 try:
     stcr_df = pd.read_csv(STCR_CSV_PATH)
 except Exception as e:
     print("Error loading STCR CSV file:", e)
     stcr_df = pd.DataFrame(
-        columns=[
-            "Crop",
-            "Variety",
-            "TargetYield_t_ha",
-            "Formula_N",
-            "Formula_P2O5",
-            "Formula_K2O",
-        ]
+        columns=["Crop", "Variety", "TargetYield_t_ha",
+                 "Formula_N", "Formula_P2O5", "Formula_K2O"]
     )
 
 for col in ["Crop", "Variety"]:
@@ -101,12 +85,6 @@ for col in ["Crop", "Variety"]:
 
 
 def get_stcr_row(crop_name, variety_name):
-    """
-    Return STCR row dict for given crop & variety.
-    Priority:
-    1. Exact (Crop, Variety)
-    2. (Crop, Variety == 'ALL' / 'All' / '' / NaN)
-    """
     if stcr_df.empty:
         return None
 
@@ -114,15 +92,15 @@ def get_stcr_row(crop_name, variety_name):
     variety_name = str(variety_name).strip()
 
     exact = stcr_df[
-        (stcr_df["Crop"] == crop_name)
-        & (stcr_df["Variety"] == variety_name)
+        (stcr_df["Crop"] == crop_name) &
+        (stcr_df["Variety"] == variety_name)
     ]
     if not exact.empty:
         return exact.iloc[0].to_dict()
 
     fallback = stcr_df[
-        (stcr_df["Crop"] == crop_name)
-        & (stcr_df["Variety"].str.upper().isin(["ALL", "", "NAN"]))
+        (stcr_df["Crop"] == crop_name) &
+        (stcr_df["Variety"].str.upper().isin(["ALL", "", "NAN"]))
     ]
     if not fallback.empty:
         return fallback.iloc[0].to_dict()
@@ -131,10 +109,6 @@ def get_stcr_row(crop_name, variety_name):
 
 
 def safe_eval_formula(formula_str, context):
-    """
-    Safely evaluate STCR formula string with given context.
-    Allowed names: T, SN, SP, SK, max, min.
-    """
     if not isinstance(formula_str, str) or not formula_str.strip():
         return 0.0
 
@@ -153,50 +127,27 @@ def safe_eval_formula(formula_str, context):
         print("Error evaluating formula:", formula_str, "Error:", e)
         return 0.0
 
-
 # ================== TELANGANA SOIL TYPES ==================
-
 TELANGANA_SOIL_TYPES = [
-    "Red Clayey",
-    "Red Loamy",
-    "Red Shallow Loamy",
-    "Red Shallow Clayey",
-    "Red Shallow Gravelly Loam",
-    "Red Shallow Gravelly Clayey",
-    "Red Gravelly Loam",
-    "Red Gravelly Clayey",
-    "Red Calcareous Clayey",
-    "Red Calcareous Gravelly Clayey",
+    "Red Clayey", "Red Loamy", "Red Shallow Loamy", "Red Shallow Clayey",
+    "Red Shallow Gravelly Loam", "Red Shallow Gravelly Clayey",
+    "Red Gravelly Loam", "Red Gravelly Clayey",
+    "Red Calcareous Clayey", "Red Calcareous Gravelly Clayey",
     "Red Shallow Calcareous Gravelly Loam",
-    "Medium Calcareous Black",
-    "Deep Calcareous Black",
-    "Deep Black",
-    "Shallow Black",
-    "Black (General)",
-    "Red Shallow Gravelly Clay",
-    "Red Shallow Gravelly Loamy",
-    "Red Shallow Gravelly",
-    "Red Gravelly",
-    "Lateritic Gravelly Clayey",
-    "Red Gravelly Clayey Loamy",
-    "Alluvio Colluvial Clay",
-    "Alluvio Colluvial Loamy",
-    "Alluvio Colluvial Clayey",
-    "Alluvio–Colluvial Clay",
-    "Alluvio Colluvial Clay Loamy",
-    "Alluvial Soil",
-    "Alluvial Colluvial Loamy",
-    "Alluvial Colluvial Clayey",
-    "Saline Sodic Soil",
-    "Calcareous Black",
-    "Brown Forest Soils",
-    "Rock Lands",
-    "Water Body",
+    "Medium Calcareous Black", "Deep Calcareous Black",
+    "Deep Black", "Shallow Black", "Black (General)",
+    "Red Shallow Gravelly Clay", "Red Shallow Gravelly Loamy",
+    "Red Shallow Gravelly", "Red Gravelly",
+    "Lateritic Gravelly Clayey", "Red Gravelly Clayey Loamy",
+    "Alluvio Colluvial Clay", "Alluvio Colluvial Loamy",
+    "Alluvio Colluvial Clayey", "Alluvio–Colluvial Clay",
+    "Alluvio Colluvial Clay Loamy", "Alluvial Soil",
+    "Alluvial Colluvial Loamy", "Alluvial Colluvial Clayey",
+    "Saline Sodic Soil", "Calcareous Black",
+    "Brown Forest Soils", "Rock Lands", "Water Body",
 ]
 
-
 # ================== FERTILIZER SPLIT SCHEDULE ==================
-
 FERT_SPLITS = {
     "Rice": [
         {"stage": "Basal",              "das_min": 0,  "das_max": 7,   "N_pct": 50, "P_pct": 100, "K_pct": 50},
@@ -256,9 +207,7 @@ FERT_SPLITS = {
     ],
 }
 
-
-# ================== HELPER FUNCTIONS ==================
-
+# ================== HELPERS ==================
 def compute_averages(readings):
     if not readings:
         return {}
@@ -323,7 +272,8 @@ def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k
     splits = FERT_SPLITS.get(crop_name, [])
     if not splits:
         splits = [
-            {"stage": "Basal", "das_min": 0, "das_max": 0, "N_pct": 100, "P_pct": 100, "K_pct": 100}
+            {"stage": "Basal", "das_min": 0, "das_max": 0,
+             "N_pct": 100, "P_pct": 100, "K_pct": 100}
         ]
     schedule = []
     for s in splits:
@@ -351,9 +301,7 @@ def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k
         )
     return schedule
 
-
 # ================== ROUTES ==================
-
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
@@ -382,13 +330,6 @@ def farmer_details():
 
 @app.route("/crop-details", methods=["GET", "POST"])
 def crop_details():
-    """
-    Crop & soil details page.
-    Frontend JS:
-    - gets GPS location via browser
-    - filters varieties by crop
-    - fetches season/duration/NPK via /api/crop-info
-    """
     crop_session = session.get("crop", {})
 
     if request.method == "POST":
@@ -457,7 +398,6 @@ def crop_details():
 
 @app.route("/api/crop-info")
 def crop_info_api():
-    """AJAX endpoint: return Season, Duration, Rec NPK for selected crop+variety."""
     crop_name = request.args.get("crop", "").strip()
     variety_name = request.args.get("variety", "").strip()
     row = get_crop_row(crop_name, variety_name)
@@ -485,45 +425,10 @@ def crop_info_api():
         }
     )
 
-
-@app.route("/readings", methods=["GET", "POST"])
+# ---------- Readings page (GET only) ----------
+@app.route("/readings", methods=["GET"])
 def readings():
     readings_list = session.get("readings", [])
-
-    if request.method == "POST":
-        if "save_reading" in request.form:
-            def get_float(name):
-                val = request.form.get(name, "").strip()
-                try:
-                    return float(val) if val else 0.0
-                except ValueError:
-                    return 0.0
-
-            reading = {
-                "soil_n": get_float("soil_n"),
-                "soil_p": get_float("soil_p"),
-                "soil_k": get_float("soil_k"),
-                "ec": get_float("ec"),
-                "soil_temp": get_float("soil_temp"),
-                "ph": get_float("ph"),
-                "soil_moisture": get_float("soil_moisture"),
-                "air_temp": get_float("air_temp"),
-                "air_humidity": get_float("air_humidity"),
-                "tds": get_float("tds"),
-            }
-
-            readings_list.append(reading)
-            session["readings"] = readings_list
-
-            if len(readings_list) >= 10:
-                return redirect(url_for("calculate"))
-            else:
-                return redirect(url_for("readings"))
-
-        if "reset_readings" in request.form:
-            session["readings"] = []
-            return redirect(url_for("readings"))
-
     reading_no = len(readings_list) + 1
     if reading_no > 10:
         reading_no = 10
@@ -535,7 +440,45 @@ def readings():
         max_readings=10,
     )
 
+# ---------- AJAX API: save one reading ----------
+@app.route("/api/save-reading", methods=["POST"])
+def api_save_reading():
+    data = request.get_json() or {}
 
+    def get_float(name):
+        val = data.get(name, 0)
+        try:
+            return float(val) if val not in [None, ""] else 0.0
+        except (TypeError, ValueError):
+            return 0.0
+
+    reading = {
+        "soil_n": get_float("soil_n"),
+        "soil_p": get_float("soil_p"),
+        "soil_k": get_float("soil_k"),
+        "ec": get_float("ec"),
+        "soil_temp": get_float("soil_temp"),
+        "ph": get_float("ph"),
+        "soil_moisture": get_float("soil_moisture"),
+        "air_temp": get_float("air_temp"),
+        "air_humidity": get_float("air_humidity"),
+        "tds": get_float("tds"),
+    }
+
+    readings_list = session.get("readings", [])
+    readings_list.append(reading)
+    session["readings"] = readings_list
+
+    done = len(readings_list) >= 10
+    return jsonify({"ok": True, "count": len(readings_list), "done": done})
+
+# ---------- AJAX API: reset readings ----------
+@app.route("/api/reset-readings", methods=["POST"])
+def api_reset_readings():
+    session["readings"] = []
+    return jsonify({"ok": True})
+
+# ---------- Calculate & Report ----------
 @app.route("/calculate")
 def calculate():
     readings_list = session.get("readings", [])
@@ -640,9 +583,7 @@ def report():
         fert_schedule=fert_schedule,
     )
 
-
-# ---------- Download as PDF / Word ----------
-
+# ---------- Download as PDF ----------
 @app.route("/download/pdf")
 def download_pdf():
     farmer = session.get("farmer", {})
@@ -733,7 +674,7 @@ def download_pdf():
         mimetype="application/pdf",
     )
 
-
+# ---------- Download as Word ----------
 @app.route("/download/word")
 def download_word():
     farmer = session.get("farmer", {})
@@ -815,6 +756,5 @@ def download_word():
 
 
 if __name__ == "__main__":
-    # For local development. Render will run `gunicorn app:app`.
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
