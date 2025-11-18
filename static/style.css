@@ -55,6 +55,10 @@ body {
     margin-bottom: 8px;
 }
 
+.card h2.center-title {
+    text-align: center;
+}
+
 /* Footer */
 .footer {
     position: fixed;
@@ -110,12 +114,31 @@ body {
 }
 
 .form-grid input,
-.form-grid select {
+.form-grid select,
+.form-grid textarea {
     margin-top: 4px;
     padding: 8px;
     border-radius: 4px;
     border: 1px solid #ccc;
     font-size: 0.9rem;
+}
+
+/* Input with microphone (voice assistant) */
+.input-with-mic {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mic-btn {
+    padding: 6px 10px;
+    border-radius: 50%;
+    border: none;
+    background: #004b8d;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
 }
 
 /* Info / tables */
