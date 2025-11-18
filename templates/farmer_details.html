@@ -5,26 +5,69 @@
 
     <form method="post" class="form-grid">
         <label>Enter Name
-            <input type="text" name="name" value="{{ farmer.get('name', '') }}" required>
+            <div class="input-with-mic">
+                <input type="text" id="name" name="name" value="{{ farmer.get('name', '') }}" required>
+                <button type="button" class="mic-btn" onclick="startDictation('name')">🎤</button>
+            </div>
         </label>
 
         <label>Enter Mobile Number
-            <input type="text" name="mobile" value="{{ farmer.get('mobile', '') }}" required>
+            <div class="input-with-mic">
+                <input type="text" id="mobile" name="mobile" value="{{ farmer.get('mobile', '') }}" required>
+                <button type="button" class="mic-btn" onclick="startDictation('mobile')">🎤</button>
+            </div>
         </label>
 
         <label>Enter Village Name
-            <input type="text" name="village" value="{{ farmer.get('village', '') }}" required>
+            <div class="input-with-mic">
+                <input type="text" id="village" name="village" value="{{ farmer.get('village', '') }}" required>
+                <button type="button" class="mic-btn" onclick="startDictation('village')">🎤</button>
+            </div>
         </label>
 
         <label>Enter Mandal Name
-            <input type="text" name="mandal" value="{{ farmer.get('mandal', '') }}" required>
+            <div class="input-with-mic">
+                <input type="text" id="mandal" name="mandal" value="{{ farmer.get('mandal', '') }}" required>
+                <button type="button" class="mic-btn" onclick="startDictation('mandal')">🎤</button>
+            </div>
         </label>
 
         <label>Enter District Name
-            <input type="text" name="district" value="{{ farmer.get('district', '') }}" required>
+            <div class="input-with-mic">
+                <input type="text" id="district" name="district" value="{{ farmer.get('district', '') }}" required>
+                <button type="button" class="mic-btn" onclick="startDictation('district')">🎤</button>
+            </div>
         </label>
 
         <button type="submit" class="primary-btn">PROCEED</button>
     </form>
 </div>
+
+<script>
+/* Simple voice assistant using Web Speech API */
+function startDictation(fieldId) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
+        return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        const input = document.getElementById(fieldId);
+        if (input) {
+            input.value = transcript;
+        }
+    };
+    recognition.onerror = function (event) {
+        console.error(event.error);
+        alert("Voice input error: " + event.error);
+    };
+    recognition.start();
+}
+</script>
 {% endblock %}
