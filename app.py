@@ -13,7 +13,12 @@ import io
 import os
 
 from docx import Document
-from reportlab.pdfgen import canvas
+
+# ReportLab for PDF with border + tables
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 import pandas as pd
 
@@ -207,6 +212,18 @@ FERT_SPLITS = {
     ],
 }
 
+# ================== IRRIGATION DEPTH (mm) BY CROP ==================
+CROP_IRRIGATION_DEPTH_MM = {
+    "Rice": 50,
+    "Maize": 40,
+    "Wheat": 45,
+    "Cotton": 35,
+    "Chilli": 30,
+    "Turmeric": 35,
+    "Groundnut": 30,
+}
+DEFAULT_IRRIGATION_DEPTH_MM = 40
+
 # ================== HELPERS ==================
 def compute_averages(readings):
     if not readings:
@@ -221,18 +238,39 @@ def compute_averages(readings):
     return averages
 
 
-def generate_irrigation_schedule(sowing_date_str, duration_days):
+def generate_irrigation_schedule(sowing_date_str, duration_days, crop_name, area_ha):
+    """Weekly irrigations with fixed depth per crop; returns list of dicts."""
     if not sowing_date_str or not duration_days:
         return []
     try:
         sowing_date = datetime.strptime(sowing_date_str, "%Y-%m-%d").date()
     except ValueError:
         return []
+    try:
+        duration_days = int(duration_days)
+    except Exception:
+        duration_days = 0
+
+    depth_mm = CROP_IRRIGATION_DEPTH_MM.get(crop_name, DEFAULT_IRRIGATION_DEPTH_MM)
+    # 1 mm of water on 1 ha = 10 m3
+    water_per_ha_m3 = depth_mm * 10.0
+    water_field_m3 = water_per_ha_m3 * area_ha
+
     schedule = []
     d = sowing_date + timedelta(days=7)
+    i = 1
     while (d - sowing_date).days <= duration_days:
-        schedule.append(d.isoformat())
+        schedule.append(
+            {
+                "no": i,
+                "date": d.isoformat(),
+                "depth_mm": float(depth_mm),
+                "water_m3_per_ha": float(water_per_ha_m3),
+                "water_m3_field": float(water_field_m3),
+            }
+        )
         d += timedelta(days=7)
+        i += 1
     return schedule
 
 
@@ -249,20 +287,43 @@ def soil_type_factor(soil_type):
     return 1.0
 
 
-def npk_to_fertilizer_form(n_kg, p2o5_kg, k2o_kg):
-    dap_needed = p2o5_kg / 0.46 if p2o5_kg else 0.0
-    n_from_dap = dap_needed * 0.18
+def combo_urea_dap_mop(n_kg, p2o5_kg, k2o_kg):
+    """Return (urea, dap, mop) in kg/ha for given N, P2O5, K2O requirement."""
+    n_kg = max(0.0, float(n_kg or 0.0))
+    p2o5_kg = max(0.0, float(p2o5_kg or 0.0))
+    k2o_kg = max(0.0, float(k2o_kg or 0.0))
+
+    dap = p2o5_kg / 0.46 if p2o5_kg > 0 else 0.0
+    n_from_dap = dap * 0.18
     n_remaining = max(0.0, n_kg - n_from_dap)
-    urea_needed = n_remaining / 0.46 if n_remaining else 0.0
-    mop_needed = k2o_kg / 0.60 if k2o_kg else 0.0
+    urea = n_remaining / 0.46 if n_remaining > 0 else 0.0
+    mop = k2o_kg / 0.60 if k2o_kg > 0 else 0.0
+    return urea, dap, mop
+
+
+def combo_urea_ssp_mop(n_kg, p2o5_kg, k2o_kg):
+    """Return (urea, ssp, mop) in kg/ha for given N, P2O5, K2O requirement."""
+    n_kg = max(0.0, float(n_kg or 0.0))
+    p2o5_kg = max(0.0, float(p2o5_kg or 0.0))
+    k2o_kg = max(0.0, float(k2o_kg or 0.0))
+
+    ssp = p2o5_kg / 0.16 if p2o5_kg > 0 else 0.0
+    urea = n_kg / 0.46 if n_kg > 0 else 0.0
+    mop = k2o_kg / 0.60 if k2o_kg > 0 else 0.0
+    return urea, ssp, mop
+
+
+def npk_to_fertilizer_form(n_kg, p2o5_kg, k2o_kg):
+    """Simple text summary (Urea + DAP + MOP per ha)."""
+    urea, dap, mop = combo_urea_dap_mop(n_kg, p2o5_kg, k2o_kg)
     return (
-        f"Urea: {urea_needed:.1f} kg/ha, "
-        f"DAP: {dap_needed:.1f} kg/ha, "
-        f"MOP: {mop_needed:.1f} kg/ha"
+        f"Urea: {urea:.1f} kg/ha, "
+        f"DAP: {dap:.1f} kg/ha, "
+        f"MOP: {mop:.1f} kg/ha"
     )
 
 
-def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k_total):
+def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k_total, area_ha=1.0):
     if not sowing_date_str:
         return []
     try:
@@ -289,6 +350,9 @@ def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k
         p_amt = round(p_total * P_pct / 100.0, 2) if P_pct > 0 else 0.0
         k_amt = round(k_total * K_pct / 100.0, 2) if K_pct > 0 else 0.0
 
+        ud_urea, ud_dap, ud_mop = combo_urea_dap_mop(n_amt, p_amt, k_amt)
+        us_urea, us_ssp, us_mop = combo_urea_ssp_mop(n_amt, p_amt, k_amt)
+
         schedule.append(
             {
                 "stage": s.get("stage", ""),
@@ -297,6 +361,20 @@ def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k
                 "N": n_amt,
                 "P2O5": p_amt,
                 "K2O": k_amt,
+                # Urea + DAP + MOP (per ha and per field)
+                "urea_dap_urea_ha": round(ud_urea, 2),
+                "urea_dap_dap_ha": round(ud_dap, 2),
+                "urea_dap_mop_ha": round(ud_mop, 2),
+                "urea_dap_urea_field": round(ud_urea * area_ha, 2),
+                "urea_dap_dap_field": round(ud_dap * area_ha, 2),
+                "urea_dap_mop_field": round(ud_mop * area_ha, 2),
+                # Urea + SSP + MOP (per ha and per field)
+                "urea_ssp_urea_ha": round(us_urea, 2),
+                "urea_ssp_ssp_ha": round(us_ssp, 2),
+                "urea_ssp_mop_ha": round(us_mop, 2),
+                "urea_ssp_urea_field": round(us_urea * area_ha, 2),
+                "urea_ssp_ssp_field": round(us_ssp * area_ha, 2),
+                "urea_ssp_mop_field": round(us_mop * area_ha, 2),
             }
         )
     return schedule
@@ -337,13 +415,23 @@ def crop_details():
         selected_variety = request.form.get("variety") or ""
         soil_type = request.form.get("soil_type") or ""
         gps_location = request.form.get("gps_location", "").strip()
+        gps_address = request.form.get("gps_address", "").strip()
         sowing_date = request.form.get("sowing_date", "").strip()
 
-        ty_str = request.form.get("target_yield", "").strip()
+        land_area_str = request.form.get("land_area", "").strip()
         try:
-            target_yield = float(ty_str) if ty_str else None
+            land_area = float(land_area_str) if land_area_str else 1.0
         except ValueError:
-            target_yield = None
+            land_area = 1.0
+
+        ty_str = request.form.get("target_yield_q", "").strip()
+        try:
+            target_yield_q = float(ty_str) if ty_str else None
+        except ValueError:
+            target_yield_q = None
+
+        # convert q/ha to t/ha for STCR formulas
+        target_yield_t = target_yield_q / 10.0 if target_yield_q is not None else None
 
         row = get_crop_row(selected_crop, selected_variety)
 
@@ -371,6 +459,7 @@ def crop_details():
 
         crop_session = {
             "gps_location": gps_location,
+            "gps_address": gps_address,
             "soil_type": soil_type,
             "crop": selected_crop,
             "variety": selected_variety,
@@ -378,7 +467,9 @@ def crop_details():
             "duration": duration,
             "recommended_npk": recommended_npk_str,
             "sowing_date": sowing_date,
-            "target_yield": target_yield,
+            "land_area": land_area,
+            "target_yield_q": target_yield_q,
+            "target_yield_t": target_yield_t,
         }
 
         session["crop"] = crop_session
@@ -488,6 +579,7 @@ def calculate():
     crop = session.get("crop", {})
     stcr_rec = session.get("stcr_rec", {})
     soil_type = crop.get("soil_type")
+    land_area = float(crop.get("land_area", 1.0) or 1.0)
 
     rec_n = float(stcr_rec.get("N", 0.0))
     rec_p = float(stcr_rec.get("P2O5", 0.0))
@@ -504,9 +596,9 @@ def calculate():
     stcr_row = get_stcr_row(crop.get("crop"), crop.get("variety"))
 
     if stcr_row:
-        target_from_farmer = crop.get("target_yield")
-        if target_from_farmer is not None:
-            T = float(target_from_farmer)
+        target_from_farmer_t = crop.get("target_yield_t")
+        if target_from_farmer_t is not None:
+            T = float(target_from_farmer_t)
         else:
             try:
                 T = float(stcr_row.get("TargetYield_t_ha", 0.0) or 0.0)
@@ -535,18 +627,45 @@ def calculate():
     recommended_npk_after = f"{final_n:.2f}:{final_p:.2f}:{final_k:.2f}"
     fertilizer_form = npk_to_fertilizer_form(final_n, final_p, final_k)
 
+    # Fertilizer combinations per ha
+    urea_dap_urea_ha, urea_dap_dap_ha, urea_dap_mop_ha = combo_urea_dap_mop(final_n, final_p, final_k)
+    urea_ssp_urea_ha, urea_ssp_ssp_ha, urea_ssp_mop_ha = combo_urea_ssp_mop(final_n, final_p, final_k)
+
     calculated = {
         "recommended_npk_after": recommended_npk_after,
         "fertilizer_form": fertilizer_form,
         "final_n": final_n,
         "final_p": final_p,
         "final_k": final_k,
+        "area_ha": land_area,
+        "urea_dap_mop_per_ha": {
+            "urea": round(urea_dap_urea_ha, 2),
+            "dap": round(urea_dap_dap_ha, 2),
+            "mop": round(urea_dap_mop_ha, 2),
+        },
+        "urea_dap_mop_field": {
+            "urea": round(urea_dap_urea_ha * land_area, 2),
+            "dap": round(urea_dap_dap_ha * land_area, 2),
+            "mop": round(urea_dap_mop_ha * land_area, 2),
+        },
+        "urea_ssp_mop_per_ha": {
+            "urea": round(urea_ssp_urea_ha, 2),
+            "ssp": round(urea_ssp_ssp_ha, 2),
+            "mop": round(urea_ssp_mop_ha, 2),
+        },
+        "urea_ssp_mop_field": {
+            "urea": round(urea_ssp_urea_ha * land_area, 2),
+            "ssp": round(urea_ssp_ssp_ha * land_area, 2),
+            "mop": round(urea_ssp_mop_ha * land_area, 2),
+        },
     }
     session["calculated"] = calculated
 
     irrigation_schedule = generate_irrigation_schedule(
         crop.get("sowing_date"),
         crop.get("duration", 0),
+        crop.get("crop"),
+        land_area,
     )
     session["irrigation_schedule"] = irrigation_schedule
 
@@ -556,6 +675,7 @@ def calculate():
         final_n,
         final_p,
         final_k,
+        land_area,
     )
     session["fert_schedule"] = fert_schedule
 
@@ -594,41 +714,71 @@ def download_pdf():
     fert_schedule = session.get("fert_schedule", [])
 
     buffer = io.BytesIO()
-    p = canvas.Canvas(buffer)
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=40,
+        rightMargin=40,
+        topMargin=60,
+        bottomMargin=40,
+    )
+    styles = getSampleStyleSheet()
+    elements = []
 
-    y = 800
+    # Title
+    elements.append(Paragraph("NRSC Farmer Advisor - Soil & Crop Report", styles["Title"]))
+    elements.append(Spacer(1, 12))
 
-    def line(text):
-        nonlocal y
-        p.drawString(50, y, text)
-        y -= 15
+    # Farmer details table
+    farmer_data = [
+        ["Field", "Value"],
+        ["Farmer Name", farmer.get("name", "")],
+        ["Mobile", farmer.get("mobile", "")],
+        ["Village", farmer.get("village", "")],
+        ["Mandal", farmer.get("mandal", "")],
+        ["District", farmer.get("district", "")],
+    ]
+    elements.append(Paragraph("Farmer Details", styles["Heading2"]))
+    t = Table(farmer_data, colWidths=[120, 350])
+    t.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 12))
 
-    p.setFont("Helvetica-Bold", 14)
-    line("NRSC Farmer Advisor - Soil & Crop Report")
-    p.setFont("Helvetica", 11)
-    y -= 10
+    # Crop & soil table
+    area_ha = float(crop.get("land_area", 1.0) or 1.0)
+    ty_q = crop.get("target_yield_q")
+    crop_data = [
+        ["Field", "Value"],
+        ["GPS Location", crop.get("gps_location", "")],
+        ["Address", crop.get("gps_address", "")],
+        ["Soil Type", crop.get("soil_type", "")],
+        ["Crop", crop.get("crop", "")],
+        ["Variety", crop.get("variety", "")],
+        ["Season", crop.get("season", "")],
+        ["Crop Duration (days)", str(crop.get("duration", ""))],
+        ["Recommended N:P:K (kg/ha)", crop.get("recommended_npk", "")],
+        ["Field / Land Area (ha)", f"{area_ha:.2f}"],
+        ["Date of Sowing", crop.get("sowing_date", "")],
+    ]
+    if ty_q is not None:
+        crop_data.insert(-1, ["Target yield for STCR (q/ha)", str(ty_q)])
 
-    line(f"Farmer Name: {farmer.get('name', '')}")
-    line(f"Mobile: {farmer.get('mobile', '')}")
-    line(f"Village: {farmer.get('village', '')}")
-    line(f"Mandal: {farmer.get('mandal', '')}")
-    line(f"District: {farmer.get('district', '')}")
-    y -= 10
+    elements.append(Paragraph("Crop & Soil Details", styles["Heading2"]))
+    t = Table(crop_data, colWidths=[170, 300])
+    t.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+        ("VALIGN", (0,0), (-1,-1), "MIDDLE"),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 12))
 
-    line(f"GPS Location: {crop.get('gps_location', '')}")
-    line(f"Soil Type: {crop.get('soil_type', '')}")
-    line(f"Crop: {crop.get('crop', '')}")
-    line(f"Variety: {crop.get('variety', '')}")
-    line(f"Season: {crop.get('season', '')}")
-    line(f"Crop Duration (days): {crop.get('duration', '')}")
-    line(f"Recommended N:P:K (Excel): {crop.get('recommended_npk', '')}")
-    line(f"Date of Sowing: {crop.get('sowing_date', '')}")
-    ty = crop.get("target_yield")
-    if ty is not None:
-        line(f"Target Yield for STCR (t/ha): {ty}")
-    y -= 15
-
-    line("Average Sensor Readings:")
+    # Average sensor readings
+    avg_data = [["Parameter", "Average value"]]
     for label, key in [
         ("Soil Nitrogen (N)", "soil_n"),
         ("Soil Phosphorus (P)", "soil_p"),
@@ -641,30 +791,129 @@ def download_pdf():
         ("Air Humidity (%)", "air_humidity"),
         ("Water/Soil TDS", "tds"),
     ]:
-        line(f"  {label}: {averages.get(key, 0):.2f}")
-    y -= 15
+        avg_data.append([label, f"{averages.get(key, 0):.2f}"])
+    elements.append(Paragraph("Average Sensor Readings", styles["Heading2"]))
+    t = Table(avg_data, colWidths=[220, 250])
+    t.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 12))
 
-    line("Final STCR-based N:P:K recommendation (kg/ha):")
-    line(f"  {calculated.get('recommended_npk_after', '')}")
-    y -= 10
-    line("Recommended dosage in commercial fertilizer form:")
-    line(f"  {calculated.get('fertilizer_form', '')}")
-    y -= 15
+    # Fertilizer recommendation summary
+    elements.append(Paragraph("Fertilizer Recommendation (STCR-based)", styles["Heading2"]))
+    elements.append(Paragraph(
+        f"Final N:P:K recommendation (kg/ha): {calculated.get('recommended_npk_after', '')}",
+        styles["Normal"],
+    ))
+    elements.append(Spacer(1, 6))
 
-    line("Fertilizer split schedule (basal & top dressings):")
-    for fs in fert_schedule:
-        line(
-            f"  {fs['stage']} | {fs['das']} DAS | {fs['date']} | "
-            f"N: {fs['N']} kg/ha, P2O5: {fs['P2O5']} kg/ha, K2O: {fs['K2O']} kg/ha"
-        )
-    y -= 15
+    # Tables for fertilizer combinations
+    ud_ha = calculated.get("urea_dap_mop_per_ha", {})
+    ud_field = calculated.get("urea_dap_mop_field", {})
+    us_ha = calculated.get("urea_ssp_mop_per_ha", {})
+    us_field = calculated.get("urea_ssp_mop_field", {})
 
-    line("Irrigation Schedule (dates):")
-    for d in irrigation_schedule:
-        line(f"  {d}")
+    # Urea + DAP + MOP
+    data_ud = [
+        ["Basis", "Urea (kg)", "DAP (kg)", "MoP (kg)"],
+        ["Per hectare",
+         f"{ud_ha.get('urea', 0):.2f}",
+         f"{ud_ha.get('dap', 0):.2f}",
+         f"{ud_ha.get('mop', 0):.2f}"],
+        [f"For field ({area_ha:.2f} ha)",
+         f"{ud_field.get('urea', 0):.2f}",
+         f"{ud_field.get('dap', 0):.2f}",
+         f"{ud_field.get('mop', 0):.2f}"],
+    ]
+    elements.append(Paragraph("Option 1: Urea + DAP + MoP", styles["Heading3"]))
+    t = Table(data_ud, colWidths=[140, 90, 90, 90])
+    t.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 8))
 
-    p.showPage()
-    p.save()
+    # Urea + SSP + MOP
+    data_us = [
+        ["Basis", "Urea (kg)", "SSP (kg)", "MoP (kg)"],
+        ["Per hectare",
+         f"{us_ha.get('urea', 0):.2f}",
+         f"{us_ha.get('ssp', 0):.2f}",
+         f"{us_ha.get('mop', 0):.2f}"],
+        [f"For field ({area_ha:.2f} ha)",
+         f"{us_field.get('urea', 0):.2f}",
+         f"{us_field.get('ssp', 0):.2f}",
+         f"{us_field.get('mop', 0):.2f}"],
+    ]
+    elements.append(Paragraph("Option 2: Urea + SSP + MoP", styles["Heading3"]))
+    t = Table(data_us, colWidths=[140, 90, 90, 90])
+    t.setStyle(TableStyle([
+        ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+        ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+    ]))
+    elements.append(t)
+    elements.append(Spacer(1, 12))
+
+    # Fertilizer split schedule
+    if fert_schedule:
+        elements.append(Paragraph("Fertilizer Split Schedule (N, P₂O₅, K₂O in kg/ha)", styles["Heading2"]))
+        data_fs = [["Stage", "DAS", "Date", "N", "P₂O₅", "K₂O"]]
+        for fs in fert_schedule:
+            data_fs.append([
+                fs["stage"],
+                str(fs["das"]),
+                fs["date"],
+                f"{fs['N']:.2f}",
+                f"{fs['P2O5']:.2f}",
+                f"{fs['K2O']:.2f}",
+            ])
+        t = Table(data_fs, colWidths=[110, 40, 80, 60, 60, 60])
+        t.setStyle(TableStyle([
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 8))
+
+        # brief text about fertilizer forms by stage
+        elements.append(Paragraph(
+            "Equivalent fertilizer quantities (for your field) at each stage "
+            "are provided in the HTML report for detailed reference.",
+            styles["Italic"],
+        ))
+        elements.append(Spacer(1, 12))
+
+    # Irrigation schedule table
+    if irrigation_schedule:
+        elements.append(Paragraph("Irrigation Schedule", styles["Heading2"]))
+        data_ir = [["No.", "Date", "Depth (mm)", "Water (m³/ha)", "Water (m³) for field"]]
+        for irr in irrigation_schedule:
+            data_ir.append([
+                str(irr["no"]),
+                irr["date"],
+                f"{irr['depth_mm']:.1f}",
+                f"{irr['water_m3_per_ha']:.1f}",
+                f"{irr['water_m3_field']:.1f}",
+            ])
+        t = Table(data_ir, colWidths=[35, 80, 70, 90, 110])
+        t.setStyle(TableStyle([
+            ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
+            ("BACKGROUND", (0,0), (-1,0), colors.lightgrey),
+        ]))
+        elements.append(t)
+
+    # Border drawing
+    def add_page_frame(canvas_obj, doc_obj):
+        width, height = A4
+        canvas_obj.saveState()
+        canvas_obj.setLineWidth(1)
+        canvas_obj.rect(30, 30, width - 60, height - 60)
+        canvas_obj.restoreState()
+
+    doc.build(elements, onFirstPage=add_page_frame, onLaterPages=add_page_frame)
     buffer.seek(0)
 
     return send_file(
@@ -696,16 +945,19 @@ def download_word():
 
     doc.add_heading("Crop & Soil Details", level=2)
     doc.add_paragraph(f"GPS Location: {crop.get('gps_location', '')}")
+    doc.add_paragraph(f"Address: {crop.get('gps_address', '')}")
     doc.add_paragraph(f"Soil Type: {crop.get('soil_type', '')}")
     doc.add_paragraph(f"Crop: {crop.get('crop', '')}")
     doc.add_paragraph(f"Variety: {crop.get('variety', '')}")
     doc.add_paragraph(f"Season: {crop.get('season', '')}")
     doc.add_paragraph(f"Crop Duration (days): {crop.get('duration', '')}")
     doc.add_paragraph(f"Recommended N:P:K (Excel): {crop.get('recommended_npk', '')}")
+    area_ha = float(crop.get("land_area", 1.0) or 1.0)
+    doc.add_paragraph(f"Field / Land Area (ha): {area_ha:.2f}")
+    ty_q = crop.get("target_yield_q")
+    if ty_q is not None:
+        doc.add_paragraph(f"Target Yield for STCR (q/ha): {ty_q}")
     doc.add_paragraph(f"Date of Sowing: {crop.get('sowing_date', '')}")
-    ty = crop.get("target_yield")
-    if ty is not None:
-        doc.add_paragraph(f"Target Yield for STCR (t/ha): {ty}")
 
     doc.add_heading("Average Sensor Readings", level=2)
     for label, key in [
@@ -728,8 +980,36 @@ def download_word():
         f"{calculated.get('recommended_npk_after', '')}"
     )
     doc.add_paragraph(
-        f"Recommended dosage in commercial fertilizer form: "
-        f"{calculated.get('fertilizer_form', '')}"
+        f"(Per ha) {calculated.get('fertilizer_form', '')}"
+    )
+
+    ud_ha = calculated.get("urea_dap_mop_per_ha", {})
+    ud_field = calculated.get("urea_dap_mop_field", {})
+    us_ha = calculated.get("urea_ssp_mop_per_ha", {})
+    us_field = calculated.get("urea_ssp_mop_field", {})
+
+    doc.add_paragraph("Option 1: Urea + DAP + MoP")
+    doc.add_paragraph(
+        f"  Per ha: Urea {ud_ha.get('urea',0):.2f} kg, "
+        f"DAP {ud_ha.get('dap',0):.2f} kg, "
+        f"MoP {ud_ha.get('mop',0):.2f} kg"
+    )
+    doc.add_paragraph(
+        f"  For field ({area_ha:.2f} ha): Urea {ud_field.get('urea',0):.2f} kg, "
+        f"DAP {ud_field.get('dap',0):.2f} kg, "
+        f"MoP {ud_field.get('mop',0):.2f} kg"
+    )
+
+    doc.add_paragraph("Option 2: Urea + SSP + MoP")
+    doc.add_paragraph(
+        f"  Per ha: Urea {us_ha.get('urea',0):.2f} kg, "
+        f"SSP {us_ha.get('ssp',0):.2f} kg, "
+        f"MoP {us_ha.get('mop',0):.2f} kg"
+    )
+    doc.add_paragraph(
+        f"  For field ({area_ha:.2f} ha): Urea {us_field.get('urea',0):.2f} kg, "
+        f"SSP {us_field.get('ssp',0):.2f} kg, "
+        f"MoP {us_field.get('mop',0):.2f} kg"
     )
 
     doc.add_heading("Fertilizer split schedule", level=2)
@@ -738,10 +1018,31 @@ def download_word():
             f"{fs['stage']} | {fs['das']} DAS | {fs['date']} | "
             f"N: {fs['N']} kg/ha, P2O5: {fs['P2O5']} kg/ha, K2O: {fs['K2O']} kg/ha"
         )
+        doc.add_paragraph(
+            f"    Urea + DAP + MoP (field): "
+            f"Urea {fs['urea_dap_urea_field']} kg, "
+            f"DAP {fs['urea_dap_dap_field']} kg, "
+            f"MoP {fs['urea_dap_mop_field']} kg"
+        )
+        doc.add_paragraph(
+            f"    Urea + SSP + MoP (field): "
+            f"Urea {fs['urea_ssp_urea_field']} kg, "
+            f"SSP {fs['urea_ssp_ssp_field']} kg, "
+            f"MoP {fs['urea_ssp_mop_field']} kg"
+        )
 
     doc.add_heading("Irrigation Schedule", level=2)
-    for d in irrigation_schedule:
-        doc.add_paragraph(f"- {d}")
+    if irrigation_schedule:
+        doc.add_paragraph(f"Total irrigations: {len(irrigation_schedule)}")
+        for irr in irrigation_schedule:
+            doc.add_paragraph(
+                f"Irrigation {irr['no']}: {irr['date']} | "
+                f"Depth {irr['depth_mm']:.1f} mm | "
+                f"Water {irr['water_m3_per_ha']:.1f} m3/ha | "
+                f"{irr['water_m3_field']:.1f} m3 for field"
+            )
+    else:
+        doc.add_paragraph("No irrigation schedule generated.")
 
     buffer = io.BytesIO()
     doc.save(buffer)
