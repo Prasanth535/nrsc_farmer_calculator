@@ -11,7 +11,6 @@ from flask import (
 from datetime import datetime, timedelta
 import io
 import os
-import re  # <--- NEW
 
 from docx import Document
 
@@ -23,51 +22,145 @@ from reportlab.lib import colors
 
 import pandas as pd
 
-# ---------- NEW: SQLAlchemy / Neon DB ----------
+# --- NEW: SQLAlchemy + Postgres (Neon) ---
 from sqlalchemy import create_engine, text
-
-def create_db_engine():
-    """
-    Create SQLAlchemy engine for Neon using DATABASE_URL env var.
-    Handles common mistakes like copying the 'psql ...' line directly.
-    """
-    raw_url = os.environ.get("DATABASE_URL", "").strip()
-
-    if not raw_url:
-        print("DATABASE_URL not set – running WITHOUT database.")
-        return None
-
-    # If someone pasted the full 'psql "postgresql://..."' command
-    # keep only the part starting with postgres...
-    match = re.search(r"(postgres[^\s'\"]+)", raw_url)
-    if match:
-        db_url = match.group(1)
-    else:
-        db_url = raw_url
-
-    # Normalise scheme for SQLAlchemy + psycopg2
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
-    elif db_url.startswith("postgresql://") and "+psycopg2" not in db_url:
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
-
-    try:
-        engine = create_engine(db_url, pool_pre_ping=True)
-        # simple test
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        print("✅ Connected to Neon database.")
-        return engine
-    except Exception as e:
-        print("❌ Error connecting to database:", e)
-        return None
-
-# Global engine (you can use this later inside routes if needed)
-db_engine = create_db_engine()
-# -----------------------------------------------
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
+
+# ================== DATABASE SETUP (NEON) ==================
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+# Render/Neon often give "postgresql://..." – SQLAlchemy with psycopg2 needs "postgresql+psycopg2://"
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+engine = None
+if DATABASE_URL:
+    try:
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        # Create tables if they do not exist
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS farmer_sessions (
+                    id SERIAL PRIMARY KEY,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    farmer_name TEXT,
+                    mobile TEXT,
+                    village TEXT,
+                    mandal TEXT,
+                    district TEXT,
+                    gps_location TEXT,
+                    gps_address TEXT,
+                    soil_type TEXT,
+                    crop TEXT,
+                    variety TEXT,
+                    land_area_ha DOUBLE PRECISION,
+                    sowing_date DATE
+                );
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sensor_readings (
+                    id SERIAL PRIMARY KEY,
+                    session_id INTEGER REFERENCES farmer_sessions(id) ON DELETE CASCADE,
+                    reading_no INTEGER,
+                    soil_n DOUBLE PRECISION,
+                    soil_p DOUBLE PRECISION,
+                    soil_k DOUBLE PRECISION,
+                    ec DOUBLE PRECISION,
+                    soil_temp DOUBLE PRECISION,
+                    ph DOUBLE PRECISION,
+                    soil_moisture DOUBLE PRECISION,
+                    air_temp DOUBLE PRECISION,
+                    air_humidity DOUBLE PRECISION,
+                    tds DOUBLE PRECISION
+                );
+            """))
+        print("Connected to Neon database and ensured tables exist.")
+    except Exception as e:
+        print("Error creating database engine:", e)
+        engine = None
+else:
+    print("DATABASE_URL not set, running without database persistence.")
+
+# Helper to save one “session” + its readings to Neon
+def save_session_and_readings_to_db(farmer, crop, readings_list):
+    """Store farmer/crop info + all sensor readings into Neon."""
+    if engine is None:
+        return  # DB not available; just skip
+
+    try:
+        with engine.begin() as conn:
+            # Insert into farmer_sessions
+            result = conn.execute(
+                text("""
+                    INSERT INTO farmer_sessions (
+                        farmer_name, mobile, village, mandal, district,
+                        gps_location, gps_address, soil_type,
+                        crop, variety, land_area_ha, sowing_date
+                    )
+                    VALUES (
+                        :farmer_name, :mobile, :village, :mandal, :district,
+                        :gps_location, :gps_address, :soil_type,
+                        :crop, :variety, :land_area_ha, :sowing_date
+                    )
+                    RETURNING id;
+                """),
+                {
+                    "farmer_name": farmer.get("name", ""),
+                    "mobile": farmer.get("mobile", ""),
+                    "village": farmer.get("village", ""),
+                    "mandal": farmer.get("mandal", ""),
+                    "district": farmer.get("district", ""),
+                    "gps_location": crop.get("gps_location", ""),
+                    "gps_address": crop.get("gps_address", ""),
+                    "soil_type": crop.get("soil_type", ""),
+                    "crop": crop.get("crop", ""),
+                    "variety": crop.get("variety", ""),
+                    "land_area_ha": float(crop.get("land_area", 1.0) or 1.0),
+                    "sowing_date": crop.get("sowing_date") or None,
+                },
+            )
+            session_id = result.scalar_one()
+
+            # Insert readings
+            for idx, r in enumerate(readings_list, start=1):
+                conn.execute(
+                    text("""
+                        INSERT INTO sensor_readings (
+                            session_id, reading_no,
+                            soil_n, soil_p, soil_k,
+                            ec, soil_temp, ph,
+                            soil_moisture, air_temp, air_humidity, tds
+                        )
+                        VALUES (
+                            :session_id, :reading_no,
+                            :soil_n, :soil_p, :soil_k,
+                            :ec, :soil_temp, :ph,
+                            :soil_moisture, :air_temp, :air_humidity, :tds
+                        );
+                    """),
+                    {
+                        "session_id": session_id,
+                        "reading_no": idx,
+                        "soil_n": r.get("soil_n", 0.0),
+                        "soil_p": r.get("soil_p", 0.0),
+                        "soil_k": r.get("soil_k", 0.0),
+                        "ec": r.get("ec", 0.0),
+                        "soil_temp": r.get("soil_temp", 0.0),
+                        "ph": r.get("ph", 0.0),
+                        "soil_moisture": r.get("soil_moisture", 0.0),
+                        "air_temp": r.get("air_temp", 0.0),
+                        "air_humidity": r.get("air_humidity", 0.0),
+                        "tds": r.get("tds", 0.0),
+                    },
+                )
+    except Exception as e:
+        print("Error saving to database:", e)
+
 
 # ================== FILE PATHS ==================
 CROP_EXCEL_PATH = "crop_variety_stcr.xlsx"
@@ -620,6 +713,7 @@ def calculate():
     averages = compute_averages(readings_list)
     session["averages"] = averages
 
+    farmer = session.get("farmer", {})
     crop = session.get("crop", {})
     stcr_rec = session.get("stcr_rec", {})
     soil_type = crop.get("soil_type")
@@ -723,6 +817,9 @@ def calculate():
     )
     session["fert_schedule"] = fert_schedule
 
+    # NEW: save this whole run to Neon DB
+    save_session_and_readings_to_db(farmer, crop, readings_list)
+
     return redirect(url_for("report"))
 
 
@@ -783,7 +880,6 @@ def download_pdf():
         ["District", farmer.get("district", "")],
     ]
     elements.append(Paragraph("Farmer Details", styles["Heading2"]))
-
     t = Table(farmer_data, colWidths=[120, 350])
     t.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
@@ -848,7 +944,6 @@ def download_pdf():
 
     # Fertilizer recommendation summary
     elements.append(Paragraph("Fertilizer Recommendation (STCR-based)", styles["Heading2"]))
-
     elements.append(Paragraph(
         f"Final N:P:K recommendation (kg/ha): {calculated.get('recommended_npk_after', '')}",
         styles["Normal"],
@@ -924,6 +1019,7 @@ def download_pdf():
         elements.append(t)
         elements.append(Spacer(1, 8))
 
+        # brief text about fertilizer forms by stage
         elements.append(Paragraph(
             "Equivalent fertilizer quantities (for your field) at each stage "
             "are provided in the HTML report for detailed reference.",
@@ -1098,6 +1194,60 @@ def download_word():
         as_attachment=True,
         download_name="NRSC_Farmer_Advisor_Report.docx",
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+# ---------- EXPORT ALL DATA AS CSV (NEW) ----------
+@app.route("/export/csv")
+def export_csv():
+    """Download all farmer sessions + sensor readings as one CSV file."""
+    if engine is None:
+        return "Database is not configured", 500
+
+    with engine.connect() as conn:
+        result = conn.execute(text("""
+            SELECT
+                fs.id AS session_id,
+                fs.created_at,
+                fs.farmer_name,
+                fs.mobile,
+                fs.village,
+                fs.mandal,
+                fs.district,
+                fs.gps_location,
+                fs.gps_address,
+                fs.soil_type,
+                fs.crop,
+                fs.variety,
+                fs.land_area_ha,
+                fs.sowing_date,
+                sr.reading_no,
+                sr.soil_n,
+                sr.soil_p,
+                sr.soil_k,
+                sr.ec,
+                sr.soil_temp,
+                sr.ph,
+                sr.soil_moisture,
+                sr.air_temp,
+                sr.air_humidity,
+                sr.tds
+            FROM farmer_sessions fs
+            LEFT JOIN sensor_readings sr
+                ON fs.id = sr.session_id
+            ORDER BY fs.id, sr.reading_no;
+        """))
+        rows = result.mappings().all()
+
+    df = pd.DataFrame(rows)
+    csv_buf = io.StringIO()
+    df.to_csv(csv_buf, index=False)
+    csv_buf.seek(0)
+
+    return send_file(
+        io.BytesIO(csv_buf.getvalue().encode("utf-8")),
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="farmer_sessions_readings.csv",
     )
 
 
