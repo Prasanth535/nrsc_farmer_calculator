@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2>NRSC Farmer Advisor - REPORT</h2>
+    <h2 class="center-title">NRSC Farmer Advisor - REPORT</h2>
 
     <h3>Farmer Details</h3>
     <p>Name of the Farmer: {{ farmer.name }}</p>
@@ -12,12 +12,17 @@
 
     <h3>Crop &amp; Soil Details</h3>
     <p>GPS location: {{ crop.gps_location }}</p>
+    <p>Full Address: {{ crop.gps_address }}</p>
     <p>Soil Type: {{ crop.soil_type }}</p>
     <p>Crop: {{ crop.crop }}</p>
     <p>Variety of the crop: {{ crop.variety }}</p>
     <p>Season: {{ crop.season }}</p>
     <p>Crop Duration (days): {{ crop.duration }}</p>
     <p>Recommended N:P:K from Excel (kg/ha): {{ crop.recommended_npk }}</p>
+    <p>Farmer Field / Land Area (ha): {{ "%.2f"|format(crop.land_area or 0) }}</p>
+    {% if crop.target_yield_q is not none %}
+        <p>Target yield for STCR (q/ha): {{ crop.target_yield_q }}</p>
+    {% endif %}
     <p>Date of Sowing selected by farmer: {{ crop.sowing_date }}</p>
 
     <h3>Average of readings given by Sensor</h3>
@@ -36,11 +41,62 @@
 
     <h3>Fertilizer Recommendation (STCR-based)</h3>
     <p>Final N:P:K recommendation (kg/ha): {{ calculated.recommended_npk_after }}</p>
-    <p>Recommended dosage of N:P:K in commercial form of fertilizer:</p>
-    <p>{{ calculated.fertilizer_form }}</p>
+
+    <h4>Option 1: Urea + DAP + MoP</h4>
+    <table class="readings-table">
+        <thead>
+        <tr>
+            <th>Basis</th>
+            <th>Urea (kg)</th>
+            <th>DAP (kg)</th>
+            <th>MoP (kg)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Per hectare</td>
+            <td>{{ "%.2f"|format(calculated.urea_dap_mop_per_ha.urea) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_dap_mop_per_ha.dap) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_dap_mop_per_ha.mop) }}</td>
+        </tr>
+        <tr>
+            <td>For your field ({{ "%.2f"|format(calculated.area_ha) }} ha)</td>
+            <td>{{ "%.2f"|format(calculated.urea_dap_mop_field.urea) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_dap_mop_field.dap) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_dap_mop_field.mop) }}</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <h4>Option 2: Urea + SSP + MoP</h4>
+    <table class="readings-table">
+        <thead>
+        <tr>
+            <th>Basis</th>
+            <th>Urea (kg)</th>
+            <th>SSP (kg)</th>
+            <th>MoP (kg)</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>Per hectare</td>
+            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_per_ha.urea) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_per_ha.ssp) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_per_ha.mop) }}</td>
+        </tr>
+        <tr>
+            <td>For your field ({{ "%.2f"|format(calculated.area_ha) }} ha)</td>
+            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_field.urea) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_field.ssp) }}</td>
+            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_field.mop) }}</td>
+        </tr>
+        </tbody>
+    </table>
 
     <h3>Dates of basal dosage and top dressing of N:P:K</h3>
     {% if fert_schedule %}
+        <p>N, P₂O₅, K₂O values are in kg/ha. Below that, equivalent fertilizer requirements are given.</p>
         <table class="readings-table">
             <thead>
             <tr>
@@ -65,18 +121,99 @@
             {% endfor %}
             </tbody>
         </table>
+
+        <h4>Fertilizer splits as Urea + DAP + MoP (for your field)</h4>
+        <table class="readings-table">
+            <thead>
+            <tr>
+                <th>Stage</th>
+                <th>DAS</th>
+                <th>Date</th>
+                <th>Urea (kg/ha)</th>
+                <th>DAP (kg/ha)</th>
+                <th>MoP (kg/ha)</th>
+                <th>Urea (kg, field)</th>
+                <th>DAP (kg, field)</th>
+                <th>MoP (kg, field)</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for fs in fert_schedule %}
+                <tr>
+                    <td>{{ fs.stage }}</td>
+                    <td>{{ fs.das }}</td>
+                    <td>{{ fs.date }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_dap_urea_ha) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_dap_dap_ha) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_dap_mop_ha) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_dap_urea_field) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_dap_dap_field) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_dap_mop_field) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <h4>Fertilizer splits as Urea + SSP + MoP (for your field)</h4>
+        <table class="readings-table">
+            <thead>
+            <tr>
+                <th>Stage</th>
+                <th>DAS</th>
+                <th>Date</th>
+                <th>Urea (kg/ha)</th>
+                <th>SSP (kg/ha)</th>
+                <th>MoP (kg/ha)</th>
+                <th>Urea (kg, field)</th>
+                <th>SSP (kg, field)</th>
+                <th>MoP (kg, field)</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for fs in fert_schedule %}
+                <tr>
+                    <td>{{ fs.stage }}</td>
+                    <td>{{ fs.das }}</td>
+                    <td>{{ fs.date }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_ssp_urea_ha) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_ssp_ssp_ha) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_ssp_mop_ha) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_ssp_urea_field) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_ssp_ssp_field) }}</td>
+                    <td>{{ "%.2f"|format(fs.urea_ssp_mop_field) }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     {% else %}
         <p>No fertilizer split schedule generated.</p>
     {% endif %}
 
     <h3>Irrigation scheduling</h3>
     {% if irrigation_schedule %}
-        <p>Irrigation dates based on date of sowing:</p>
-        <ul>
-            {% for d in irrigation_schedule %}
-                <li>{{ d }}</li>
+        <p>Total number of irrigations: {{ irrigation_schedule|length }}</p>
+        <table class="readings-table">
+            <thead>
+            <tr>
+                <th>Irrigation No.</th>
+                <th>Date</th>
+                <th>Depth (mm)</th>
+                <th>Water (m³/ha)</th>
+                <th>Water for your field (m³)</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for irr in irrigation_schedule %}
+                <tr>
+                    <td>{{ irr.no }}</td>
+                    <td>{{ irr.date }}</td>
+                    <td>{{ "%.1f"|format(irr.depth_mm) }}</td>
+                    <td>{{ "%.1f"|format(irr.water_m3_per_ha) }}</td>
+                    <td>{{ "%.1f"|format(irr.water_m3_field) }}</td>
+                </tr>
             {% endfor %}
-        </ul>
+            </tbody>
+        </table>
     {% else %}
         <p>No irrigation schedule generated.</p>
     {% endif %}
