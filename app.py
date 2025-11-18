@@ -22,6 +22,29 @@ from reportlab.lib import colors
 
 import pandas as pd
 
+# ================== NEW: DATABASE (NEON POSTGRESQL) SETUP ==================
+from sqlalchemy import create_engine, text
+
+# In Render, set DATABASE_URL env var to the Neon SQLAlchemy connection string
+# Example:
+# postgresql+psycopg2://neondb_owner:password@ep-xxxx.us-east-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+engine = None
+if DATABASE_URL:
+    try:
+        # pool_pre_ping=True helps avoid stale connections
+        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+        # Optional: test connection once at startup
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print("✅ Connected to Neon PostgreSQL successfully.")
+    except Exception as e:
+        print("⚠️ Error connecting to Neon PostgreSQL:", e)
+else:
+    print("⚠️ DATABASE_URL not set. Database connection will not be used.")
+
+# ================== FLASK APP ==================
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
 
@@ -391,7 +414,7 @@ def index():
 
 @app.route("/farmer-details", methods=["GET", "POST"])
 def farmer_details():
-    if request.method == "POST":
+    if request.method == "POST"]:
         farmer = {
             "name": request.form.get("name", "").strip(),
             "mobile": request.form.get("mobile", "").strip(),
@@ -739,6 +762,7 @@ def download_pdf():
         ["District", farmer.get("district", "")],
     ]
     elements.append(Paragraph("Farmer Details", styles["Heading2"]))
+
     t = Table(farmer_data, colWidths=[120, 350])
     t.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
@@ -860,6 +884,7 @@ def download_pdf():
     # Fertilizer split schedule
     if fert_schedule:
         elements.append(Paragraph("Fertilizer Split Schedule (N, P₂O₅, K₂O in kg/ha)", styles["Heading2"]))
+
         data_fs = [["Stage", "DAS", "Date", "N", "P₂O₅", "K₂O"]]
         for fs in fert_schedule:
             data_fs.append([
@@ -878,7 +903,6 @@ def download_pdf():
         elements.append(t)
         elements.append(Spacer(1, 8))
 
-        # brief text about fertilizer forms by stage
         elements.append(Paragraph(
             "Equivalent fertilizer quantities (for your field) at each stage "
             "are provided in the HTML report for detailed reference.",
@@ -1054,6 +1078,18 @@ def download_word():
         download_name="NRSC_Farmer_Advisor_Report.docx",
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+# ---------- OPTIONAL: Simple DB test route ----------
+@app.route("/db-test")
+def db_test():
+    if engine is None:
+        return "DATABASE_URL not set or DB connection not available", 500
+    try:
+        with engine.connect() as conn:
+            value = conn.execute(text("SELECT 'neon_connected'")).scalar_one()
+        return f"DB OK: {value}"
+    except Exception as e:
+        return f"DB error: {e}", 500
 
 
 if __name__ == "__main__":
