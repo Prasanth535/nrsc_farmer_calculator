@@ -22,31 +22,31 @@ from reportlab.lib import colors
 
 import pandas as pd
 
-# ================== NEW: DATABASE (NEON POSTGRESQL) SETUP ==================
+# ---------- NEW: SQLAlchemy / Neon ----------
 from sqlalchemy import create_engine, text
 
-# In Render, set DATABASE_URL env var to the Neon SQLAlchemy connection string
-# Example:
-# postgresql+psycopg2://neondb_owner:password@ep-xxxx.us-east-1.aws.neon.tech/neondb?sslmode=require
-DATABASE_URL = os.environ.get("DATABASE_URL")
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
+
+# ---------- NEW: Neon / Postgres engine ----------
+DATABASE_URL = os.environ.get("DATABASE_URL")  # set in Render from Neon
 
 engine = None
 if DATABASE_URL:
     try:
-        # pool_pre_ping=True helps avoid stale connections
         engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-        # Optional: test connection once at startup
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        print("✅ Connected to Neon PostgreSQL successfully.")
+        print("Database engine created successfully.")
     except Exception as e:
-        print("⚠️ Error connecting to Neon PostgreSQL:", e)
+        print("Error creating database engine:", e)
 else:
-    print("⚠️ DATABASE_URL not set. Database connection will not be used.")
+    print("DATABASE_URL is not set. Database will not be used.")
 
-# ================== FLASK APP ==================
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
+
+def get_db_connection():
+    """Return a SQLAlchemy connection or None if engine is not configured."""
+    if engine is None:
+        return None
+    return engine.connect()
 
 # ================== FILE PATHS ==================
 CROP_EXCEL_PATH = "crop_variety_stcr.xlsx"
@@ -414,7 +414,7 @@ def index():
 
 @app.route("/farmer-details", methods=["GET", "POST"])
 def farmer_details():
-    if request.method == "POST"]:
+    if request.method == "POST":
         farmer = {
             "name": request.form.get("name", "").strip(),
             "mobile": request.form.get("mobile", "").strip(),
@@ -762,7 +762,6 @@ def download_pdf():
         ["District", farmer.get("district", "")],
     ]
     elements.append(Paragraph("Farmer Details", styles["Heading2"]))
-
     t = Table(farmer_data, colWidths=[120, 350])
     t.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
@@ -792,6 +791,7 @@ def download_pdf():
         crop_data.insert(-1, ["Target yield for STCR (q/ha)", str(ty_q)])
 
     elements.append(Paragraph("Crop & Soil Details", styles["Heading2"]))
+
     t = Table(crop_data, colWidths=[170, 300])
     t.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
@@ -903,6 +903,7 @@ def download_pdf():
         elements.append(t)
         elements.append(Spacer(1, 8))
 
+        # brief text about fertilizer forms by stage
         elements.append(Paragraph(
             "Equivalent fertilizer quantities (for your field) at each stage "
             "are provided in the HTML report for detailed reference.",
@@ -1079,17 +1080,21 @@ def download_word():
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
-# ---------- OPTIONAL: Simple DB test route ----------
+# ---------- NEW: simple DB test route ----------
 @app.route("/db-test")
 def db_test():
+    """
+    Hit this URL in Render to verify Neon connection.
+    """
     if engine is None:
-        return "DATABASE_URL not set or DB connection not available", 500
+        return "Database not configured. DATABASE_URL is missing or invalid.", 500
+
     try:
         with engine.connect() as conn:
-            value = conn.execute(text("SELECT 'neon_connected'")).scalar_one()
-        return f"DB OK: {value}"
+            version = conn.execute(text("SELECT version();")).scalar()
+        return f"Connected to database!<br>Server version: {version}"
     except Exception as e:
-        return f"DB error: {e}", 500
+        return f"Database connection error: {e}", 500
 
 
 if __name__ == "__main__":
