@@ -11,6 +11,7 @@ from flask import (
 from datetime import datetime, timedelta
 import io
 import os
+import re  # <--- NEW
 
 from docx import Document
 
@@ -22,31 +23,51 @@ from reportlab.lib import colors
 
 import pandas as pd
 
-# ---------- NEW: SQLAlchemy / Neon ----------
+# ---------- NEW: SQLAlchemy / Neon DB ----------
 from sqlalchemy import create_engine, text
+
+def create_db_engine():
+    """
+    Create SQLAlchemy engine for Neon using DATABASE_URL env var.
+    Handles common mistakes like copying the 'psql ...' line directly.
+    """
+    raw_url = os.environ.get("DATABASE_URL", "").strip()
+
+    if not raw_url:
+        print("DATABASE_URL not set – running WITHOUT database.")
+        return None
+
+    # If someone pasted the full 'psql "postgresql://..."' command
+    # keep only the part starting with postgres...
+    match = re.search(r"(postgres[^\s'\"]+)", raw_url)
+    if match:
+        db_url = match.group(1)
+    else:
+        db_url = raw_url
+
+    # Normalise scheme for SQLAlchemy + psycopg2
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif db_url.startswith("postgresql://") and "+psycopg2" not in db_url:
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
+    try:
+        engine = create_engine(db_url, pool_pre_ping=True)
+        # simple test
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        print("✅ Connected to Neon database.")
+        return engine
+    except Exception as e:
+        print("❌ Error connecting to database:", e)
+        return None
+
+# Global engine (you can use this later inside routes if needed)
+db_engine = create_db_engine()
+# -----------------------------------------------
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
-
-# ---------- NEW: Neon / Postgres engine ----------
-DATABASE_URL = os.environ.get("DATABASE_URL")  # set in Render from Neon
-
-engine = None
-if DATABASE_URL:
-    try:
-        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-        print("Database engine created successfully.")
-    except Exception as e:
-        print("Error creating database engine:", e)
-else:
-    print("DATABASE_URL is not set. Database will not be used.")
-
-
-def get_db_connection():
-    """Return a SQLAlchemy connection or None if engine is not configured."""
-    if engine is None:
-        return None
-    return engine.connect()
 
 # ================== FILE PATHS ==================
 CROP_EXCEL_PATH = "crop_variety_stcr.xlsx"
@@ -762,6 +783,7 @@ def download_pdf():
         ["District", farmer.get("district", "")],
     ]
     elements.append(Paragraph("Farmer Details", styles["Heading2"]))
+
     t = Table(farmer_data, colWidths=[120, 350])
     t.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
@@ -791,7 +813,6 @@ def download_pdf():
         crop_data.insert(-1, ["Target yield for STCR (q/ha)", str(ty_q)])
 
     elements.append(Paragraph("Crop & Soil Details", styles["Heading2"]))
-
     t = Table(crop_data, colWidths=[170, 300])
     t.setStyle(TableStyle([
         ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
@@ -827,6 +848,7 @@ def download_pdf():
 
     # Fertilizer recommendation summary
     elements.append(Paragraph("Fertilizer Recommendation (STCR-based)", styles["Heading2"]))
+
     elements.append(Paragraph(
         f"Final N:P:K recommendation (kg/ha): {calculated.get('recommended_npk_after', '')}",
         styles["Normal"],
@@ -884,7 +906,6 @@ def download_pdf():
     # Fertilizer split schedule
     if fert_schedule:
         elements.append(Paragraph("Fertilizer Split Schedule (N, P₂O₅, K₂O in kg/ha)", styles["Heading2"]))
-
         data_fs = [["Stage", "DAS", "Date", "N", "P₂O₅", "K₂O"]]
         for fs in fert_schedule:
             data_fs.append([
@@ -903,7 +924,6 @@ def download_pdf():
         elements.append(t)
         elements.append(Spacer(1, 8))
 
-        # brief text about fertilizer forms by stage
         elements.append(Paragraph(
             "Equivalent fertilizer quantities (for your field) at each stage "
             "are provided in the HTML report for detailed reference.",
@@ -1079,22 +1099,6 @@ def download_word():
         download_name="NRSC_Farmer_Advisor_Report.docx",
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
-
-# ---------- NEW: simple DB test route ----------
-@app.route("/db-test")
-def db_test():
-    """
-    Hit this URL in Render to verify Neon connection.
-    """
-    if engine is None:
-        return "Database not configured. DATABASE_URL is missing or invalid.", 500
-
-    try:
-        with engine.connect() as conn:
-            version = conn.execute(text("SELECT version();")).scalar()
-        return f"Connected to database!<br>Server version: {version}"
-    except Exception as e:
-        return f"Database connection error: {e}", 500
 
 
 if __name__ == "__main__":
