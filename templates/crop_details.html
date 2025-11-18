@@ -4,8 +4,8 @@
     <h2>Crop & Soil Details</h2>
 
     <form method="post" class="form-grid" id="cropForm">
-        <!-- GPS: fetched via browser, not typed -->
-        <label>GPS Enabled Location
+        <!-- 1. GPS: fetched via browser, not typed -->
+        <label>GPS Enabled Location (coordinates)
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <input type="text" id="gps_location" name="gps_location"
                        value="{{ crop.get('gps_location', '') }}"
@@ -17,6 +17,13 @@
             </div>
         </label>
 
+        <!-- 2. Full address from coordinates -->
+        <label>Full Address of Location
+            <textarea id="gps_address" name="gps_address" rows="2" readonly
+                      placeholder="Address will appear here after GPS is fetched">{{ crop.get('gps_address', '') }}</textarea>
+        </label>
+
+        <!-- 3. Soil type -->
         <label>Soil Type (Telangana)
             <select name="soil_type" required>
                 <option value="">Select Soil Type</option>
@@ -29,6 +36,7 @@
             </select>
         </label>
 
+        <!-- 4. Crop -->
         <label>Crop
             <select name="crop" id="cropSelect" required>
                 <option value="">Select Crop</option>
@@ -41,32 +49,44 @@
             </select>
         </label>
 
+        <!-- 5. Variety -->
         <label>Variety of crop
             <select name="variety" id="varietySelect" required>
                 <option value="">Select Variety</option>
             </select>
         </label>
 
-        <label>Season (from Excel)
+        <!-- 6. Season -->
+        <label>Season
             <input type="text" id="season" value="{{ crop.get('season', '') }}" readonly>
         </label>
 
-        <label>Crop Duration (days) (from Excel)
+        <!-- 7. Crop Duration -->
+        <label>Crop Duration (days)
             <input type="number" name="duration" id="duration"
                    min="0" value="{{ crop.get('duration', '') }}" readonly>
         </label>
 
-        <label>Recommended N:P:K (kg/ha) (from Excel)
+        <!-- 8. Recommended NPK from Excel -->
+        <label>Recommended N:P:K (kg/ha)
             <input type="text" name="recommended_npk" id="recommended_npk"
                    value="{{ crop.get('recommended_npk', '') }}" readonly>
         </label>
 
-        <label>Target yield for STCR (t/ha)
-            <input type="number" step="0.1" name="target_yield"
-                   value="{{ crop.get('target_yield', '') if crop.get('target_yield') is not none }}">
-            <small>If left blank, default target yield from STCR file will be used.</small>
+        <!-- 9. Farmer actual land area -->
+        <label>Farmer Field / Land Area (ha)
+            <input type="number" step="0.01" min="0" name="land_area"
+                   value="{{ crop.get('land_area', '') }}">
         </label>
 
+        <!-- 10. Target yield in q/ha -->
+        <label>Target yield for STCR (q/ha)
+            <input type="number" step="0.1" name="target_yield_q"
+                   value="{% if crop.get('target_yield_q') is not none %}{{ crop.get('target_yield_q') }}{% endif %}">
+            <small>If left blank, default target yield from STCR file (converted from t/ha) will be used.</small>
+        </label>
+
+        <!-- 11. Date of sowing -->
         <label>Select the Date of Sowing
             <input type="date" name="sowing_date"
                    value="{{ crop.get('sowing_date', '') }}" required>
@@ -82,8 +102,9 @@ const cropVarietyMap = {{ crop_variety_map|tojson|safe }};
 const cropInfoUrl = "{{ url_for('crop_info_api') }}";
 const initialCrop = "{{ crop.get('crop', '') }}";
 const initialVariety = "{{ crop.get('variety', '') }}";
+const initialAddress = `{{ crop.get('gps_address', '') }}`;
 
-// ---------- 2. Dynamic GPS location ----------
+// ---------- 2. Dynamic GPS location + reverse geocoding ----------
 document.getElementById('getLocationBtn').addEventListener('click', function (e) {
     e.preventDefault();
     if (!navigator.geolocation) {
@@ -95,12 +116,30 @@ document.getElementById('getLocationBtn').addEventListener('click', function (e)
             const lat = pos.coords.latitude.toFixed(6);
             const lon = pos.coords.longitude.toFixed(6);
             document.getElementById('gps_location').value = lat + ", " + lon;
+            fetchAddressFromCoords(lat, lon);
         },
         function (err) {
             alert("Unable to fetch location: " + err.message);
         }
     );
 });
+
+function fetchAddressFromCoords(lat, lon) {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+    fetch(url, {
+        headers: {
+            "Accept": "application/json"
+        }
+    })
+        .then(resp => resp.json())
+        .then(data => {
+            const addr = data.display_name || "";
+            document.getElementById('gps_address').value = addr;
+        })
+        .catch(err => {
+            console.error(err);
+        });
+}
 
 // ---------- 3. Populate varieties based on crop ----------
 const cropSelect = document.getElementById('cropSelect');
@@ -167,6 +206,9 @@ window.addEventListener('DOMContentLoaded', function () {
         if (initialVariety) {
             fetchCropInfo();
         }
+    }
+    if (initialAddress) {
+        document.getElementById('gps_address').value = initialAddress;
     }
 });
 </script>
