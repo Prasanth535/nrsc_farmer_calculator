@@ -1,226 +1,800 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2 class="center-title">NRSC Farmer Advisor - REPORT</h2>
+    <!-- Report Header -->
+    <div class="report-header">
+        <div class="report-badge">OFFICIAL REPORT</div>
+        <h1 class="report-title">NRSC Farmer Advisor - Soil Analysis Report</h1>
+        <div class="report-meta">
+            <div class="meta-item">
+                <strong>Generated:</strong> {{ now.strftime('%Y-%m-%d %H:%M') if now else '' }}
+            </div>
+            <div class="meta-item">
+                <strong>Report ID:</strong> FA-{{ "%06d" | format(range(1, 1000000) | random) }}
+            </div>
+        </div>
+    </div>
 
-    <h3>Farmer Details</h3>
-    <p>Name of the Farmer: {{ farmer.name }}</p>
-    <p>Farmer mobile number: {{ farmer.mobile }}</p>
-    <p>Village Name: {{ farmer.village }}</p>
-    <p>Mandal Name: {{ farmer.mandal }}</p>
-    <p>District Name: {{ farmer.district }}</p>
+    <!-- Executive Summary -->
+    <div class="executive-summary">
+        <h2>📊 Executive Summary</h2>
+        <div class="summary-grid">
+            <div class="summary-card primary">
+                <div class="summary-icon">🌾</div>
+                <div class="summary-content">
+                    <h3>{{ crop.crop }}</h3>
+                    <p>{{ crop.variety }}</p>
+                </div>
+            </div>
+            <div class="summary-card success">
+                <div class="summary-icon">📈</div>
+                <div class="summary-content">
+                    <h3>{{ calculated.recommended_npk_after }}</h3>
+                    <p>Recommended NPK</p>
+                </div>
+            </div>
+            <div class="summary-card warning">
+                <div class="summary-icon">📍</div>
+                <div class="summary-content">
+                    <h3>{{ "%.2f"|format(crop.land_area or 0) }} ha</h3>
+                    <p>Land Area</p>
+                </div>
+            </div>
+            <div class="summary-card info">
+                <div class="summary-icon">📅</div>
+                <div class="summary-content">
+                    <h3>{{ fert_schedule|length }}</h3>
+                    <p>Fertilizer Applications</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <h3>Crop &amp; Soil Details</h3>
-    <p>GPS location: {{ crop.gps_location }}</p>
-    <p>Full Address: {{ crop.gps_address }}</p>
-    <p>Soil Type: {{ crop.soil_type }}</p>
-    <p>Crop: {{ crop.crop }}</p>
-    <p>Variety of the crop: {{ crop.variety }}</p>
-    <p>Season: {{ crop.season }}</p>
-    <p>Crop Duration (days): {{ crop.duration }}</p>
-    <p>Recommended N:P:K from Excel (kg/ha): {{ crop.recommended_npk }}</p>
-    <p>Farmer Field / Land Area (ha): {{ "%.2f"|format(crop.land_area or 0) }}</p>
-    {% if crop.target_yield_q is not none %}
-        <p>Target yield for STCR (q/ha): {{ crop.target_yield_q }}</p>
-    {% endif %}
-    <p>Date of Sowing selected by farmer: {{ crop.sowing_date }}</p>
+    <!-- Farmer Details -->
+    <section class="report-section">
+        <h2>👨‍🌾 Farmer Details</h2>
+        <div class="detail-grid">
+            <div class="detail-item">
+                <strong>Name:</strong> {{ farmer.name }}
+            </div>
+            <div class="detail-item">
+                <strong>Mobile:</strong> {{ farmer.mobile }}
+            </div>
+            <div class="detail-item">
+                <strong>Village:</strong> {{ farmer.village }}
+            </div>
+            <div class="detail-item">
+                <strong>Mandal:</strong> {{ farmer.mandal }}
+            </div>
+            <div class="detail-item">
+                <strong>District:</strong> {{ farmer.district }}
+            </div>
+        </div>
+    </section>
 
-    <h3>Average of readings given by Sensor</h3>
-    <ul>
-        <li>Soil Nitrogen (N): {{ "%.2f"|format(averages.get("soil_n", 0)) }}</li>
-        <li>Soil Phosphorus (P): {{ "%.2f"|format(averages.get("soil_p", 0)) }}</li>
-        <li>Soil Potassium (K): {{ "%.2f"|format(averages.get("soil_k", 0)) }}</li>
-        <li>Soil Electrical Conductivity (EC): {{ "%.2f"|format(averages.get("ec", 0)) }}</li>
-        <li>Soil Temperature: {{ "%.2f"|format(averages.get("soil_temp", 0)) }}</li>
-        <li>Soil pH: {{ "%.2f"|format(averages.get("ph", 0)) }}</li>
-        <li>Soil Moisture: {{ "%.2f"|format(averages.get("soil_moisture", 0)) }}</li>
-        <li>Air Temperature: {{ "%.2f"|format(averages.get("air_temp", 0)) }}</li>
-        <li>Air Humidity: {{ "%.2f"|format(averages.get("air_humidity", 0)) }}</li>
-        <li>Water / Soil TDS: {{ "%.2f"|format(averages.get("tds", 0)) }}</li>
-    </ul>
+    <!-- Crop & Soil Details -->
+    <section class="report-section">
+        <h2>🌱 Crop & Soil Information</h2>
+        <div class="detail-grid two-columns">
+            <div class="detail-item">
+                <strong>GPS Location:</strong> {{ crop.gps_location }}
+            </div>
+            <div class="detail-item">
+                <strong>Soil Type:</strong> {{ crop.soil_type }}
+            </div>
+            <div class="detail-item">
+                <strong>Crop:</strong> {{ crop.crop }}
+            </div>
+            <div class="detail-item">
+                <strong>Variety:</strong> {{ crop.variety }}
+            </div>
+            <div class="detail-item">
+                <strong>Season:</strong> {{ crop.season }}
+            </div>
+            <div class="detail-item">
+                <strong>Duration:</strong> {{ crop.duration }} days
+            </div>
+            <div class="detail-item">
+                <strong>Land Area:</strong> {{ "%.2f"|format(crop.land_area or 0) }} ha
+            </div>
+            <div class="detail-item">
+                <strong>Sowing Date:</strong> {{ crop.sowing_date }}
+            </div>
+            {% if crop.target_yield_q is not none %}
+            <div class="detail-item">
+                <strong>Target Yield:</strong> {{ crop.target_yield_q }} q/ha
+            </div>
+            {% endif %}
+        </div>
+    </section>
 
-    <h3>Fertilizer Recommendation (STCR-based)</h3>
-    <p>Final N:P:K recommendation (kg/ha): {{ calculated.recommended_npk_after }}</p>
+    <!-- Soil Analysis Results -->
+    <section class="report-section">
+        <h2>🔬 Soil Analysis Results</h2>
+        <div class="analysis-grid">
+            <div class="analysis-card">
+                <h4>Primary Nutrients</h4>
+                <div class="analysis-value {{ 'optimal' if averages.get('soil_n', 0) > 50 else 'low' }}">
+                    N: {{ "%.2f"|format(averages.get("soil_n", 0)) }} kg/ha
+                </div>
+                <div class="analysis-value {{ 'optimal' if averages.get('soil_p', 0) > 25 else 'low' }}">
+                    P: {{ "%.2f"|format(averages.get("soil_p", 0)) }} kg/ha
+                </div>
+                <div class="analysis-value {{ 'optimal' if averages.get('soil_k', 0) > 100 else 'low' }}">
+                    K: {{ "%.2f"|format(averages.get("soil_k", 0)) }} kg/ha
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h4>Soil Properties</h4>
+                <div class="analysis-value {{ 'optimal' if 6.5 <= averages.get('ph', 0) <= 7.5 else 'low' }}">
+                    pH: {{ "%.2f"|format(averages.get("ph", 0)) }}
+                </div>
+                <div class="analysis-value">
+                    EC: {{ "%.2f"|format(averages.get("ec", 0)) }}
+                </div>
+                <div class="analysis-value {{ 'optimal' if averages.get('soil_moisture', 0) > 25 else 'low' }}">
+                    Moisture: {{ "%.2f"|format(averages.get("soil_moisture", 0)) }}%
+                </div>
+            </div>
+            
+            <div class="analysis-card">
+                <h4>Environmental</h4>
+                <div class="analysis-value">
+                    Soil Temp: {{ "%.2f"|format(averages.get("soil_temp", 0)) }}°C
+                </div>
+                <div class="analysis-value">
+                    Air Temp: {{ "%.2f"|format(averages.get("air_temp", 0)) }}°C
+                </div>
+                <div class="analysis-value {{ 'optimal' if averages.get('air_humidity', 0) > 60 else 'low' }}">
+                    Humidity: {{ "%.2f"|format(averages.get("air_humidity", 0)) }}%
+                </div>
+            </div>
+        </div>
+    </section>
 
-    <h4>Option 1: Urea + DAP + MoP</h4>
-    <table class="readings-table">
-        <thead>
-        <tr>
-            <th>Basis</th>
-            <th>Urea (kg)</th>
-            <th>DAP (kg)</th>
-            <th>MoP (kg)</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr>
-            <td>Per hectare</td>
-            <td>{{ "%.2f"|format(calculated.urea_dap_mop_per_ha.urea) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_dap_mop_per_ha.dap) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_dap_mop_per_ha.mop) }}</td>
-        </tr>
-        <tr>
-            <td>For your field ({{ "%.2f"|format(calculated.area_ha) }} ha)</td>
-            <td>{{ "%.2f"|format(calculated.urea_dap_mop_field.urea) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_dap_mop_field.dap) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_dap_mop_field.mop) }}</td>
-        </tr>
-        </tbody>
-    </table>
+    <!-- Fertilizer Recommendations -->
+    <section class="report-section">
+        <h2>💡 Fertilizer Recommendations</h2>
+        
+        <div class="recommendation-header">
+            <h3>Final N:P:K Recommendation: {{ calculated.recommended_npk_after }} kg/ha</h3>
+            <p class="recommendation-note">Based on STCR analysis and soil test results</p>
+        </div>
 
-    <h4>Option 2: Urea + SSP + MoP</h4>
-    <table class="readings-table">
-        <thead>
-        <tr>
-            <th>Basis</th>
-            <th>Urea (kg)</th>
-            <th>SSP (kg)</th>
-            <th>MoP (kg)</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr>
-            <td>Per hectare</td>
-            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_per_ha.urea) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_per_ha.ssp) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_per_ha.mop) }}</td>
-        </tr>
-        <tr>
-            <td>For your field ({{ "%.2f"|format(calculated.area_ha) }} ha)</td>
-            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_field.urea) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_field.ssp) }}</td>
-            <td>{{ "%.2f"|format(calculated.urea_ssp_mop_field.mop) }}</td>
-        </tr>
-        </tbody>
-    </table>
+        <div class="fertilizer-options">
+            <div class="option-card">
+                <h4>Option 1: Urea + DAP + MoP</h4>
+                <div class="option-table">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Fertilizer</th>
+                                <th>Per Hectare</th>
+                                <th>For Your Field</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Urea</td>
+                                <td>{{ "%.1f"|format(calculated.urea_dap_mop_per_ha.urea) }} kg</td>
+                                <td>{{ "%.1f"|format(calculated.urea_dap_mop_field.urea) }} kg</td>
+                            </tr>
+                            <tr>
+                                <td>DAP</td>
+                                <td>{{ "%.1f"|format(calculated.urea_dap_mop_per_ha.dap) }} kg</td>
+                                <td>{{ "%.1f"|format(calculated.urea_dap_mop_field.dap) }} kg</td>
+                            </tr>
+                            <tr>
+                                <td>MoP</td>
+                                <td>{{ "%.1f"|format(calculated.urea_dap_mop_per_ha.mop) }} kg</td>
+                                <td>{{ "%.1f"|format(calculated.urea_dap_mop_field.mop) }} kg</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-    <h3>Dates of basal dosage and top dressing of N:P:K</h3>
+            <div class="option-card">
+                <h4>Option 2: Urea + SSP + MoP</h4>
+                <div class="option-table">
+                    <table class="report-table">
+                        <thead>
+                            <tr>
+                                <th>Fertilizer</th>
+                                <th>Per Hectare</th>
+                                <th>For Your Field</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Urea</td>
+                                <td>{{ "%.1f"|format(calculated.urea_ssp_mop_per_ha.urea) }} kg</td>
+                                <td>{{ "%.1f"|format(calculated.urea_ssp_mop_field.urea) }} kg</td>
+                            </tr>
+                            <tr>
+                                <td>SSP</td>
+                                <td>{{ "%.1f"|format(calculated.urea_ssp_mop_per_ha.ssp) }} kg</td>
+                                <td>{{ "%.1f"|format(calculated.urea_ssp_mop_field.ssp) }} kg</td>
+                            </tr>
+                            <tr>
+                                <td>MoP</td>
+                                <td>{{ "%.1f"|format(calculated.urea_ssp_mop_per_ha.mop) }} kg</td>
+                                <td>{{ "%.1f"|format(calculated.urea_ssp_mop_field.mop) }} kg</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Fertilizer Schedule -->
     {% if fert_schedule %}
-        <p>N, P₂O₅, K₂O values are in kg/ha. Below that, equivalent fertilizer requirements are given.</p>
-        <table class="readings-table">
-            <thead>
-            <tr>
-                <th>Stage</th>
-                <th>DAS</th>
-                <th>Calendar Date</th>
-                <th>N (kg/ha)</th>
-                <th>P₂O₅ (kg/ha)</th>
-                <th>K₂O (kg/ha)</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for fs in fert_schedule %}
-                <tr>
-                    <td>{{ fs.stage }}</td>
-                    <td>{{ fs.das }}</td>
-                    <td>{{ fs.date }}</td>
-                    <td>{{ "%.2f"|format(fs.N) }}</td>
-                    <td>{{ "%.2f"|format(fs.P2O5) }}</td>
-                    <td>{{ "%.2f"|format(fs.K2O) }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+    <section class="report-section">
+        <h2>📅 Fertilizer Application Schedule</h2>
+        
+        <div class="schedule-tabs">
+            <button class="tab-button active" onclick="openTab('nutrientTab')">Nutrient Schedule</button>
+            <button class="tab-button" onclick="openTab('ureaDapTab')">Urea + DAP + MoP</button>
+            <button class="tab-button" onclick="openTab('ureaSspTab')">Urea + SSP + MoP</button>
+        </div>
 
-        <h4>Fertilizer splits as Urea + DAP + MoP (for your field)</h4>
-        <table class="readings-table">
-            <thead>
-            <tr>
-                <th>Stage</th>
-                <th>DAS</th>
-                <th>Date</th>
-                <th>Urea (kg/ha)</th>
-                <th>DAP (kg/ha)</th>
-                <th>MoP (kg/ha)</th>
-                <th>Urea (kg, field)</th>
-                <th>DAP (kg, field)</th>
-                <th>MoP (kg, field)</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for fs in fert_schedule %}
-                <tr>
-                    <td>{{ fs.stage }}</td>
-                    <td>{{ fs.das }}</td>
-                    <td>{{ fs.date }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_dap_urea_ha) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_dap_dap_ha) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_dap_mop_ha) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_dap_urea_field) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_dap_dap_field) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_dap_mop_field) }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <div id="nutrientTab" class="tab-content active">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th>DAS</th>
+                        <th>Date</th>
+                        <th>N (kg/ha)</th>
+                        <th>P₂O₅ (kg/ha)</th>
+                        <th>K₂O (kg/ha)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fs in fert_schedule %}
+                    <tr>
+                        <td><strong>{{ fs.stage }}</strong></td>
+                        <td>{{ fs.das }}</td>
+                        <td>{{ fs.date }}</td>
+                        <td>{{ "%.2f"|format(fs.N) }}</td>
+                        <td>{{ "%.2f"|format(fs.P2O5) }}</td>
+                        <td>{{ "%.2f"|format(fs.K2O) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-        <h4>Fertilizer splits as Urea + SSP + MoP (for your field)</h4>
-        <table class="readings-table">
-            <thead>
-            <tr>
-                <th>Stage</th>
-                <th>DAS</th>
-                <th>Date</th>
-                <th>Urea (kg/ha)</th>
-                <th>SSP (kg/ha)</th>
-                <th>MoP (kg/ha)</th>
-                <th>Urea (kg, field)</th>
-                <th>SSP (kg, field)</th>
-                <th>MoP (kg, field)</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for fs in fert_schedule %}
-                <tr>
-                    <td>{{ fs.stage }}</td>
-                    <td>{{ fs.das }}</td>
-                    <td>{{ fs.date }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_ssp_urea_ha) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_ssp_ssp_ha) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_ssp_mop_ha) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_ssp_urea_field) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_ssp_ssp_field) }}</td>
-                    <td>{{ "%.2f"|format(fs.urea_ssp_mop_field) }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No fertilizer split schedule generated.</p>
+        <div id="ureaDapTab" class="tab-content">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th>Date</th>
+                        <th>Urea (kg)</th>
+                        <th>DAP (kg)</th>
+                        <th>MoP (kg)</th>
+                        <th>Total (kg)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fs in fert_schedule %}
+                    <tr>
+                        <td><strong>{{ fs.stage }}</strong></td>
+                        <td>{{ fs.date }}</td>
+                        <td>{{ "%.1f"|format(fs.urea_dap_urea_field) }}</td>
+                        <td>{{ "%.1f"|format(fs.urea_dap_dap_field) }}</td>
+                        <td>{{ "%.1f"|format(fs.urea_dap_mop_field) }}</td>
+                        <td><strong>{{ "%.1f"|format(fs.urea_dap_urea_field + fs.urea_dap_dap_field + fs.urea_dap_mop_field) }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div id="ureaSspTab" class="tab-content">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th>Stage</th>
+                        <th>Date</th>
+                        <th>Urea (kg)</th>
+                        <th>SSP (kg)</th>
+                        <th>MoP (kg)</th>
+                        <th>Total (kg)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fs in fert_schedule %}
+                    <tr>
+                        <td><strong>{{ fs.stage }}</strong></td>
+                        <td>{{ fs.date }}</td>
+                        <td>{{ "%.1f"|format(fs.urea_ssp_urea_field) }}</td>
+                        <td>{{ "%.1f"|format(fs.urea_ssp_ssp_field) }}</td>
+                        <td>{{ "%.1f"|format(fs.urea_ssp_mop_field) }}</td>
+                        <td><strong>{{ "%.1f"|format(fs.urea_ssp_urea_field + fs.urea_ssp_ssp_field + fs.urea_ssp_mop_field) }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
     {% endif %}
 
-    <h3>Irrigation scheduling</h3>
+    <!-- Irrigation Schedule -->
     {% if irrigation_schedule %}
-        <p>Total number of irrigations: {{ irrigation_schedule|length }}</p>
-        <table class="readings-table">
+    <section class="report-section">
+        <h2>💧 Irrigation Schedule</h2>
+        <div class="irrigation-summary">
+            <div class="summary-badge">
+                <strong>{{ irrigation_schedule|length }}</strong> irrigations planned
+            </div>
+            <div class="summary-badge">
+                <strong>{{ "%.0f"|format(irrigation_schedule[0].depth_mm) }}</strong> mm depth
+            </div>
+            <div class="summary-badge">
+                <strong>{{ "%.0f"|format(irrigation_schedule[0].water_m3_per_ha) }}</strong> m³/ha
+            </div>
+        </div>
+
+        <table class="report-table">
             <thead>
-            <tr>
-                <th>Irrigation No.</th>
-                <th>Date</th>
-                <th>Depth (mm)</th>
-                <th>Water (m³/ha)</th>
-                <th>Water for your field (m³)</th>
-            </tr>
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Depth (mm)</th>
+                    <th>Water (m³/ha)</th>
+                    <th>Water for Field (m³)</th>
+                </tr>
             </thead>
             <tbody>
-            {% for irr in irrigation_schedule %}
+                {% for irr in irrigation_schedule %}
                 <tr>
-                    <td>{{ irr.no }}</td>
+                    <td><strong>{{ irr.no }}</strong></td>
                     <td>{{ irr.date }}</td>
                     <td>{{ "%.1f"|format(irr.depth_mm) }}</td>
                     <td>{{ "%.1f"|format(irr.water_m3_per_ha) }}</td>
-                    <td>{{ "%.1f"|format(irr.water_m3_field) }}</td>
+                    <td><strong>{{ "%.1f"|format(irr.water_m3_field) }}</strong></td>
                 </tr>
-            {% endfor %}
+                {% endfor %}
             </tbody>
         </table>
-    {% else %}
-        <p>No irrigation schedule generated.</p>
+    </section>
     {% endif %}
 
-    <div class="button-row">
-        <a href="{{ url_for('download_pdf') }}" class="primary-btn">Download report (PDF)</a>
-        <a href="{{ url_for('download_word') }}" class="secondary-btn">Download report (Word)</a>
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <div class="disclaimer">
+            <h4>📝 Important Notes</h4>
+            <ul>
+                <li>This report is generated based on soil sensor readings and STCR formulas</li>
+                <li>Recommendations may vary based on actual field conditions</li>
+                <li>Consult with agricultural experts for final decision making</li>
+                <li>Keep this report for future reference and comparison</li>
+            </ul>
+        </div>
+
+        <div class="download-actions">
+            <a href="{{ url_for('download_pdf') }}" class="primary-btn btn-large">
+                <span class="btn-icon">📄</span>
+                Download PDF Report
+            </a>
+            <a href="{{ url_for('download_word') }}" class="secondary-btn">
+                <span class="btn-icon">📝</span>
+                Download Word Report
+            </a>
+        </div>
     </div>
 </div>
+
+<style>
+    .report-header {
+        text-align: center;
+        margin-bottom: var(--space-xl);
+        padding-bottom: var(--space-lg);
+        border-bottom: 3px solid var(--light-gray);
+    }
+
+    .report-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: var(--space-sm) var(--space-lg);
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: var(--space-md);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .report-title {
+        color: var(--primary-dark);
+        margin-bottom: var(--space-md);
+        font-size: 2rem;
+    }
+
+    .report-meta {
+        display: flex;
+        justify-content: center;
+        gap: var(--space-xl);
+        flex-wrap: wrap;
+    }
+
+    .meta-item {
+        background: var(--light-bg);
+        padding: var(--space-sm) var(--space-md);
+        border-radius: var(--radius-md);
+        font-size: 0.9rem;
+    }
+
+    .executive-summary {
+        margin-bottom: var(--space-xl);
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--space-md);
+        margin-top: var(--space-lg);
+    }
+
+    .summary-card {
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        color: white;
+        transition: transform var(--transition-normal);
+    }
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .summary-card.primary {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+    }
+
+    .summary-card.success {
+        background: linear-gradient(135deg, var(--secondary-green) 0%, var(--secondary-light) 100%);
+    }
+
+    .summary-card.warning {
+        background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-gold) 100%);
+    }
+
+    .summary-card.info {
+        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    }
+
+    .summary-icon {
+        font-size: 2rem;
+    }
+
+    .summary-content h3 {
+        margin: 0;
+        font-size: 1.3rem;
+    }
+
+    .summary-content p {
+        margin: 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    .report-section {
+        margin-bottom: var(--space-xl);
+        padding: var(--space-lg);
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--light-gray);
+    }
+
+    .report-section h2 {
+        color: var(--primary-dark);
+        margin-bottom: var(--space-lg);
+        padding-bottom: var(--space-sm);
+        border-bottom: 2px solid var(--light-gray);
+    }
+
+    .detail-grid {
+        display: grid;
+        gap: var(--space-md);
+    }
+
+    .two-columns {
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    }
+
+    .detail-item {
+        padding: var(--space-md);
+        background: white;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--light-gray);
+    }
+
+    .analysis-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--space-md);
+    }
+
+    .analysis-card {
+        padding: var(--space-lg);
+        background: white;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--light-gray);
+    }
+
+    .analysis-card h4 {
+        color: var(--primary-dark);
+        margin-bottom: var(--space-md);
+    }
+
+    .analysis-value {
+        padding: var(--space-sm);
+        margin-bottom: var(--space-sm);
+        border-radius: var(--radius-sm);
+        font-weight: 600;
+    }
+
+    .analysis-value.optimal {
+        background: #d4edda;
+        color: #155724;
+        border-left: 4px solid var(--secondary-green);
+    }
+
+    .analysis-value.low {
+        background: #f8d7da;
+        color: #721c24;
+        border-left: 4px solid #e74c3c;
+    }
+
+    .recommendation-header {
+        text-align: center;
+        margin-bottom: var(--space-lg);
+        padding: var(--space-lg);
+        background: linear-gradient(135deg, #e8f4f8 0%, #d5edf7 100%);
+        border-radius: var(--radius-lg);
+    }
+
+    .recommendation-note {
+        color: var(--medium-gray);
+        margin-top: var(--space-sm);
+    }
+
+    .fertilizer-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: var(--space-lg);
+    }
+
+    .option-card {
+        padding: var(--space-lg);
+        background: white;
+        border-radius: var(--radius-lg);
+        border: 2px solid var(--light-gray);
+        transition: all var(--transition-normal);
+    }
+
+    .option-card:hover {
+        border-color: var(--primary-blue);
+        transform: translateY(-2px);
+    }
+
+    .option-card h4 {
+        color: var(--primary-dark);
+        margin-bottom: var(--space-md);
+        text-align: center;
+    }
+
+    .report-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .report-table th {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: var(--space-md);
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .report-table td {
+        padding: var(--space-md);
+        border-bottom: 1px solid var(--light-gray);
+    }
+
+    .report-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    .report-table tr:hover {
+        background-color: rgba(0, 102, 204, 0.05);
+    }
+
+    .schedule-tabs {
+        display: flex;
+        gap: var(--space-sm);
+        margin-bottom: var(--space-lg);
+        flex-wrap: wrap;
+    }
+
+    .tab-button {
+        padding: var(--space-md) var(--space-lg);
+        background: var(--light-gray);
+        border: none;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all var(--transition-fast);
+    }
+
+    .tab-button.active {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+        color: white;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+        animation: fadeIn 0.5s ease;
+    }
+
+    .irrigation-summary {
+        display: flex;
+        gap: var(--space-md);
+        margin-bottom: var(--space-lg);
+        flex-wrap: wrap;
+    }
+
+    .summary-badge {
+        background: linear-gradient(135deg, #e8f4f8 0%, #d5edf7 100%);
+        padding: var(--space-md) var(--space-lg);
+        border-radius: var(--radius-md);
+        text-align: center;
+        border: 1px solid var(--primary-blue);
+    }
+
+    .summary-badge strong {
+        display: block;
+        font-size: 1.5rem;
+        color: var(--primary-dark);
+    }
+
+    .report-footer {
+        margin-top: var(--space-xl);
+        padding-top: var(--space-lg);
+        border-top: 2px solid var(--light-gray);
+    }
+
+    .disclaimer {
+        background: #fff3cd;
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        border-left: 4px solid var(--accent-gold);
+        margin-bottom: var(--space-lg);
+    }
+
+    .disclaimer h4 {
+        color: #856404;
+        margin-bottom: var(--space-md);
+    }
+
+    .disclaimer ul {
+        color: #856404;
+        margin: 0;
+        padding-left: var(--space-lg);
+    }
+
+    .disclaimer li {
+        margin-bottom: var(--space-sm);
+    }
+
+    .download-actions {
+        text-align: center;
+        display: flex;
+        gap: var(--space-md);
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+        .report-title {
+            font-size: 1.5rem;
+        }
+
+        .report-meta {
+            flex-direction: column;
+            gap: var(--space-md);
+        }
+
+        .summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .fertilizer-options {
+            grid-template-columns: 1fr;
+        }
+
+        .schedule-tabs {
+            flex-direction: column;
+        }
+
+        .tab-button {
+            text-align: center;
+        }
+
+        .download-actions {
+            flex-direction: column;
+        }
+
+        .report-table {
+            font-size: 0.85rem;
+        }
+
+        .report-table th,
+        .report-table td {
+            padding: var(--space-sm);
+        }
+    }
+</style>
+
+<script>
+    function openTab(tabName) {
+        // Hide all tab contents
+        const tabContents = document.getElementsByClassName('tab-content');
+        for (let i = 0; i < tabContents.length; i++) {
+            tabContents[i].classList.remove('active');
+        }
+
+        // Remove active class from all buttons
+        const tabButtons = document.getElementsByClassName('tab-button');
+        for (let i = 0; i < tabButtons.length; i++) {
+            tabButtons[i].classList.remove('active');
+        }
+
+        // Show the specific tab content and activate the button
+        document.getElementById(tabName).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // Add print functionality
+    function printReport() {
+        window.print();
+    }
+
+    // Add animation to summary cards on load
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.summary-card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+            card.style.opacity = '0';
+            card.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                card.style.transition = 'all 0.6s ease';
+                card.style.opacity = '1';
+                card.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+</script>
 {% endblock %}
