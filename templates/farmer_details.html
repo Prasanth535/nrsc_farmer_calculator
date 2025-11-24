@@ -1,73 +1,417 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2>Farmer Details</h2>
+    <div class="form-header">
+        <h2>Farmer Registration</h2>
+        <p class="form-subtitle">Please provide your details to get personalized agricultural recommendations</p>
+    </div>
 
-    <form method="post" class="form-grid">
-        <label>Enter Name
-            <div class="input-with-mic">
-                <input type="text" id="name" name="name" value="{{ farmer.get('name', '') }}" required>
-                <button type="button" class="mic-btn" onclick="startDictation('name')">🎤</button>
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="step active">
+                <div class="step-number">1</div>
+                <span class="step-label">Farmer Details</span>
             </div>
-        </label>
-
-        <label>Enter Mobile Number
-            <div class="input-with-mic">
-                <input type="text" id="mobile" name="mobile" value="{{ farmer.get('mobile', '') }}" required>
-                <button type="button" class="mic-btn" onclick="startDictation('mobile')">🎤</button>
+            <div class="step">
+                <div class="step-number">2</div>
+                <span class="step-label">Crop & Soil</span>
             </div>
-        </label>
-
-        <label>Enter Village Name
-            <div class="input-with-mic">
-                <input type="text" id="village" name="village" value="{{ farmer.get('village', '') }}" required>
-                <button type="button" class="mic-btn" onclick="startDictation('village')">🎤</button>
+            <div class="step">
+                <div class="step-number">3</div>
+                <span class="step-label">Soil Testing</span>
             </div>
-        </label>
-
-        <label>Enter Mandal Name
-            <div class="input-with-mic">
-                <input type="text" id="mandal" name="mandal" value="{{ farmer.get('mandal', '') }}" required>
-                <button type="button" class="mic-btn" onclick="startDictation('mandal')">🎤</button>
+            <div class="step">
+                <div class="step-number">4</div>
+                <span class="step-label">Results</span>
             </div>
-        </label>
+        </div>
+    </div>
 
-        <label>Enter District Name
-            <div class="input-with-mic">
-                <input type="text" id="district" name="district" value="{{ farmer.get('district', '') }}" required>
-                <button type="button" class="mic-btn" onclick="startDictation('district')">🎤</button>
+    <form method="post" class="form-grid" id="farmerForm">
+        <div class="form-section">
+            <h3 class="section-title">Personal Information</h3>
+            
+            <label class="form-label">
+                <span class="label-text">Full Name</span>
+                <div class="input-with-mic">
+                    <input type="text" id="name" name="name" value="{{ farmer.get('name', '') }}" 
+                           placeholder="Enter your full name" required
+                           class="form-input">
+                    <button type="button" class="mic-btn" onclick="startDictation('name')" 
+                            title="Voice Input">
+                        🎤
+                    </button>
+                </div>
+                <small class="input-hint">We respect your privacy. Your data is secure.</small>
+            </label>
+
+            <label class="form-label">
+                <span class="label-text">Mobile Number</span>
+                <div class="input-with-mic">
+                    <input type="tel" id="mobile" name="mobile" value="{{ farmer.get('mobile', '') }}" 
+                           placeholder="Enter 10-digit mobile number" 
+                           pattern="[0-9]{10}" required
+                           class="form-input">
+                    <button type="button" class="mic-btn" onclick="startDictation('mobile')"
+                            title="Voice Input">
+                        🎤
+                    </button>
+                </div>
+                <small class="input-hint">For important updates and recommendations</small>
+            </label>
+        </div>
+
+        <div class="form-section">
+            <h3 class="section-title">Location Details</h3>
+            
+            <label class="form-label">
+                <span class="label-text">Village Name</span>
+                <div class="input-with-mic">
+                    <input type="text" id="village" name="village" value="{{ farmer.get('village', '') }}" 
+                           placeholder="Enter your village name" required
+                           class="form-input">
+                    <button type="button" class="mic-btn" onclick="startDictation('village')"
+                            title="Voice Input">
+                        🎤
+                    </button>
+                </div>
+            </label>
+
+            <label class="form-label">
+                <span class="label-text">Mandal Name</span>
+                <div class="input-with-mic">
+                    <input type="text" id="mandal" name="mandal" value="{{ farmer.get('mandal', '') }}" 
+                           placeholder="Enter your mandal name" required
+                           class="form-input">
+                    <button type="button" class="mic-btn" onclick="startDictation('mandal')"
+                            title="Voice Input">
+                        🎤
+                    </button>
+                </div>
+            </label>
+
+            <label class="form-label">
+                <span class="label-text">District Name</span>
+                <div class="input-with-mic">
+                    <input type="text" id="district" name="district" value="{{ farmer.get('district', '') }}" 
+                           placeholder="Enter your district name" required
+                           class="form-input">
+                    <button type="button" class="mic-btn" onclick="startDictation('district')"
+                            title="Voice Input">
+                        🎤
+                    </button>
+                </div>
+            </label>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="primary-btn btn-large">
+                <span class="btn-icon">➡️</span>
+                Proceed to Crop Details
+            </button>
+            
+            <div class="form-help">
+                <p>💡 <strong>Need help?</strong> Use the microphone button for voice input in supported browsers.</p>
             </div>
-        </label>
-
-        <button type="submit" class="primary-btn">PROCEED</button>
+        </div>
     </form>
 </div>
 
-<script>
-/* Simple voice assistant using Web Speech API */
-function startDictation(fieldId) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-        return;
+<style>
+    .form-header {
+        text-align: center;
+        margin-bottom: var(--space-xl);
     }
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
 
-    recognition.onresult = function (event) {
-        const transcript = event.results[0][0].transcript;
-        const input = document.getElementById(fieldId);
-        if (input) {
-            input.value = transcript;
+    .form-subtitle {
+        color: var(--medium-gray);
+        font-size: 1.1rem;
+        margin-top: var(--space-sm);
+    }
+
+    .progress-indicator {
+        margin-bottom: var(--space-xl);
+    }
+
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .progress-steps::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--light-gray);
+        z-index: 1;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--light-gray);
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: var(--space-sm);
+        transition: all var(--transition-normal);
+    }
+
+    .step.active .step-number {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+    }
+
+    .step-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--medium-gray);
+        text-align: center;
+    }
+
+    .step.active .step-label {
+        color: var(--primary-dark);
+    }
+
+    .form-section {
+        background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--light-gray);
+        margin-bottom: var(--space-lg);
+    }
+
+    .section-title {
+        color: var(--primary-dark);
+        font-size: 1.2rem;
+        margin-bottom: var(--space-lg);
+        padding-bottom: var(--space-sm);
+        border-bottom: 2px solid var(--light-gray);
+    }
+
+    .form-label {
+        margin-bottom: var(--space-lg);
+    }
+
+    .label-text {
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: var(--space-sm);
+        display: block;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: var(--space-md);
+        border: 2px solid var(--light-gray);
+        border-radius: var(--radius-md);
+        font-size: 1rem;
+        transition: all var(--transition-fast);
+        background: var(--white);
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+
+    .input-hint {
+        color: var(--medium-gray);
+        font-size: 0.85rem;
+        margin-top: var(--space-xs);
+        display: block;
+    }
+
+    .form-actions {
+        text-align: center;
+        margin-top: var(--space-xl);
+        padding-top: var(--space-lg);
+        border-top: 1px solid var(--light-gray);
+    }
+
+    .btn-large {
+        padding: var(--space-lg) var(--space-xl);
+        font-size: 1.1rem;
+    }
+
+    .btn-icon {
+        margin-right: var(--space-sm);
+    }
+
+    .form-help {
+        margin-top: var(--space-lg);
+        padding: var(--space-md);
+        background: linear-gradient(135deg, #e8f4f8 0%, #d5edf7 100%);
+        border-radius: var(--radius-md);
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    @media (max-width: 768px) {
+        .progress-steps {
+            flex-direction: column;
+            gap: var(--space-lg);
+            align-items: flex-start;
         }
-    };
-    recognition.onerror = function (event) {
-        console.error(event.error);
-        alert("Voice input error: " + event.error);
-    };
-    recognition.start();
-}
+
+        .progress-steps::before {
+            display: none;
+        }
+
+        .step {
+            flex-direction: row;
+            gap: var(--space-md);
+        }
+
+        .step-number {
+            margin-bottom: 0;
+        }
+
+        .form-section {
+            padding: var(--space-md);
+        }
+
+        .btn-large {
+            width: 100%;
+            padding: var(--space-lg);
+        }
+    }
+</style>
+
+<script>
+    /* Enhanced Voice Assistant using Web Speech API */
+    function startDictation(fieldId) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            showNotification('Speech recognition is not supported in this browser. Please use Chrome or Edge.', 'error');
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-IN';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognition.continuous = false;
+
+        const micBtn = document.querySelector(`#${fieldId}`).nextElementSibling;
+        micBtn.classList.add('listening');
+
+        recognition.onresult = function (event) {
+            const transcript = event.results[0][0].transcript;
+            const input = document.getElementById(fieldId);
+            if (input) {
+                input.value = transcript;
+                input.focus();
+                showNotification('Voice input captured successfully!', 'success');
+            }
+            micBtn.classList.remove('listening');
+        };
+
+        recognition.onerror = function (event) {
+            console.error('Speech recognition error:', event.error);
+            let errorMessage = 'Voice input failed. ';
+            
+            switch(event.error) {
+                case 'no-speech':
+                    errorMessage += 'No speech was detected.';
+                    break;
+                case 'audio-capture':
+                    errorMessage += 'No microphone was found.';
+                    break;
+                case 'not-allowed':
+                    errorMessage += 'Microphone permission was denied.';
+                    break;
+                default:
+                    errorMessage += 'Please try again.';
+            }
+            
+            showNotification(errorMessage, 'error');
+            micBtn.classList.remove('listening');
+        };
+
+        recognition.onend = function() {
+            micBtn.classList.remove('listening');
+        };
+
+        recognition.start();
+    }
+
+    function showNotification(message, type) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+        `;
+
+        // Add styles
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? 'var(--secondary-green)' : '#e74c3c'};
+            color: white;
+            padding: var(--space-md) var(--space-lg);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+
+        document.body.appendChild(notification);
+
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Form validation
+    document.getElementById('farmerForm').addEventListener('submit', function(e) {
+        const mobile = document.getElementById('mobile').value;
+        if (mobile && !/^\d{10}$/.test(mobile)) {
+            e.preventDefault();
+            showNotification('Please enter a valid 10-digit mobile number.', 'error');
+            document.getElementById('mobile').focus();
+        }
+    });
+
+    // Add input animations
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('.form-input');
+        inputs.forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.parentElement.style.transform = 'translateY(-2px)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.parentElement.style.transform = 'translateY(0)';
+            });
+        });
+    });
 </script>
 {% endblock %}
