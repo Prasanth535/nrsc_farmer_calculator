@@ -1,215 +1,652 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2>Crop & Soil Details</h2>
+    <div class="form-header">
+        <h2>Crop & Soil Information</h2>
+        <p class="form-subtitle">Provide details about your crop and land for personalized recommendations</p>
+    </div>
+
+    <div class="progress-indicator">
+        <div class="progress-steps">
+            <div class="step completed">
+                <div class="step-number">✓</div>
+                <span class="step-label">Farmer Details</span>
+            </div>
+            <div class="step active">
+                <div class="step-number">2</div>
+                <span class="step-label">Crop & Soil</span>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <span class="step-label">Soil Testing</span>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <span class="step-label">Results</span>
+            </div>
+        </div>
+    </div>
 
     <form method="post" class="form-grid" id="cropForm">
-        <!-- 1. GPS: fetched via browser, not typed -->
-        <label>GPS Enabled Location (coordinates)
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <input type="text" id="gps_location" name="gps_location"
-                       value="{{ crop.get('gps_location', '') }}"
-                       placeholder="Latitude, Longitude"
-                       readonly style="flex:1 1 auto;">
-                <button type="button" id="getLocationBtn" class="secondary-btn">
-                    Get GPS
-                </button>
+        <!-- Location Section -->
+        <div class="form-section">
+            <h3 class="section-title">📍 Location Information</h3>
+            
+            <div class="form-group">
+                <label for="gps_location" class="form-label">GPS Coordinates</label>
+                <div class="input-with-action">
+                    <input type="text" id="gps_location" name="gps_location"
+                           value="{{ crop.get('gps_location', '') }}"
+                           placeholder="Latitude, Longitude will appear here"
+                           readonly class="form-input">
+                    <button type="button" id="getLocationBtn" class="action-btn">
+                        <span class="btn-icon">📍</span>
+                        Get GPS
+                    </button>
+                </div>
+                <small class="input-hint">Click "Get GPS" to automatically fetch your location</small>
             </div>
-        </label>
 
-        <!-- 2. Full address from coordinates -->
-        <label>Full Address of Location
-            <textarea id="gps_address" name="gps_address" rows="2" readonly
-                      placeholder="Address will appear here after GPS is fetched">{{ crop.get('gps_address', '') }}</textarea>
-        </label>
+            <div class="form-group">
+                <label for="gps_address" class="form-label">Full Address</label>
+                <textarea id="gps_address" name="gps_address" rows="3" readonly
+                          placeholder="Address will be automatically filled after GPS detection"
+                          class="form-input">{{ crop.get('gps_address', '') }}</textarea>
+            </div>
 
-        <!-- 3. Soil type -->
-        <label>Soil Type (Telangana)
-            <select name="soil_type" required>
-                <option value="">Select Soil Type</option>
-                {% for soil in telangana_soils %}
-                    <option value="{{ soil }}"
-                        {% if crop.get('soil_type') == soil %}selected{% endif %}>
-                        {{ soil }}
-                    </option>
-                {% endfor %}
-            </select>
-        </label>
+            <div class="form-group">
+                <label for="soil_type" class="form-label">Soil Type</label>
+                <select name="soil_type" id="soil_type" required class="form-input">
+                    <option value="">Select Soil Type</option>
+                    {% for soil in telangana_soils %}
+                        <option value="{{ soil }}"
+                            {% if crop.get('soil_type') == soil %}selected{% endif %}>
+                            {{ soil }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <small class="input-hint">Select the predominant soil type in your field</small>
+            </div>
+        </div>
 
-        <!-- 4. Crop -->
-        <label>Crop
-            <select name="crop" id="cropSelect" required>
-                <option value="">Select Crop</option>
-                {% for c in crops %}
-                    <option value="{{ c }}"
-                        {% if crop.get('crop') == c %}selected{% endif %}>
-                        {{ c }}
-                    </option>
-                {% endfor %}
-            </select>
-        </label>
+        <!-- Crop Information Section -->
+        <div class="form-section">
+            <h3 class="section-title">🌾 Crop Details</h3>
+            
+            <div class="form-group">
+                <label for="cropSelect" class="form-label">Crop Type</label>
+                <select name="crop" id="cropSelect" required class="form-input">
+                    <option value="">Select Crop</option>
+                    {% for c in crops %}
+                        <option value="{{ c }}"
+                            {% if crop.get('crop') == c %}selected{% endif %}>
+                            {{ c }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-        <!-- 5. Variety -->
-        <label>Variety of crop
-            <select name="variety" id="varietySelect" required>
-                <option value="">Select Variety</option>
-            </select>
-        </label>
+            <div class="form-group">
+                <label for="varietySelect" class="form-label">Crop Variety</label>
+                <select name="variety" id="varietySelect" required class="form-input">
+                    <option value="">Select Variety</option>
+                </select>
+                <small class="input-hint">Choose the specific variety you're planting</small>
+            </div>
 
-        <!-- 6. Season -->
-        <label>Season
-            <input type="text" id="season" value="{{ crop.get('season', '') }}" readonly>
-        </label>
+            <div class="info-grid">
+                <div class="form-group">
+                    <label for="season" class="form-label">Season</label>
+                    <input type="text" id="season" value="{{ crop.get('season', '') }}" 
+                           readonly class="form-input info-field">
+                </div>
 
-        <!-- 7. Crop Duration -->
-        <label>Crop Duration (days)
-            <input type="number" name="duration" id="duration"
-                   min="0" value="{{ crop.get('duration', '') }}" readonly>
-        </label>
+                <div class="form-group">
+                    <label for="duration" class="form-label">Duration (Days)</label>
+                    <input type="number" name="duration" id="duration"
+                           min="0" value="{{ crop.get('duration', '') }}" 
+                           readonly class="form-input info-field">
+                </div>
+            </div>
 
-        <!-- 8. Recommended NPK from Excel -->
-        <label>Recommended N:P:K (kg/ha)
-            <input type="text" name="recommended_npk" id="recommended_npk"
-                   value="{{ crop.get('recommended_npk', '') }}" readonly>
-        </label>
+            <div class="form-group">
+                <label for="recommended_npk" class="form-label">Recommended NPK (kg/ha)</label>
+                <input type="text" name="recommended_npk" id="recommended_npk"
+                       value="{{ crop.get('recommended_npk', '') }}" 
+                       readonly class="form-input info-field">
+                <small class="input-hint">Based on crop variety and season</small>
+            </div>
+        </div>
 
-        <!-- 9. Farmer actual land area -->
-        <label>Farmer Field / Land Area (ha)
-            <input type="number" step="0.01" min="0" name="land_area"
-                   value="{{ crop.get('land_area', '') }}">
-        </label>
+        <!-- Field & Target Information -->
+        <div class="form-section">
+            <h3 class="section-title">📐 Field & Target Information</h3>
+            
+            <div class="form-group">
+                <label for="land_area" class="form-label">Land Area (Hectares)</label>
+                <input type="number" step="0.01" min="0" name="land_area" id="land_area"
+                       value="{{ crop.get('land_area', '') }}" 
+                       placeholder="Enter land area in hectares"
+                       class="form-input" required>
+                <small class="input-hint">1 hectare = 2.47 acres</small>
+            </div>
 
-        <!-- 10. Target yield in q/ha -->
-        <label>Target yield for STCR (q/ha)
-            <input type="number" step="0.1" name="target_yield_q"
-                   value="{% if crop.get('target_yield_q') is not none %}{{ crop.get('target_yield_q') }}{% endif %}">
-            <small>If left blank, default target yield from STCR file (converted from t/ha) will be used.</small>
-        </label>
+            <div class="form-group">
+                <label for="target_yield_q" class="form-label">Target Yield (Quintal/Hectare)</label>
+                <input type="number" step="0.1" name="target_yield_q" id="target_yield_q"
+                       value="{% if crop.get('target_yield_q') is not none %}{{ crop.get('target_yield_q') }}{% endif %}"
+                       placeholder="Enter expected yield"
+                       class="form-input">
+                <small class="input-hint">Optional: For STCR-based precise recommendations</small>
+            </div>
 
-        <!-- 11. Date of sowing -->
-        <label>Select the Date of Sowing
-            <input type="date" name="sowing_date"
-                   value="{{ crop.get('sowing_date', '') }}" required>
-        </label>
+            <div class="form-group">
+                <label for="sowing_date" class="form-label">Sowing Date</label>
+                <input type="date" name="sowing_date" id="sowing_date"
+                       value="{{ crop.get('sowing_date', '') }}" 
+                       class="form-input" required>
+                <small class="input-hint">Select planned or actual sowing date</small>
+            </div>
+        </div>
 
-        <button type="submit" class="primary-btn">PROCEED TO TEST SOIL</button>
+        <div class="form-actions">
+            <button type="submit" class="primary-btn btn-large">
+                <span class="btn-icon">🔬</span>
+                Proceed to Soil Testing
+            </button>
+            
+            <div class="form-help">
+                <p>💡 <strong>Pro Tip:</strong> Accurate GPS and soil type information ensures precise recommendations.</p>
+            </div>
+        </div>
     </form>
 </div>
 
-<script>
-// ---------- 1. Data from backend ----------
-const cropVarietyMap = {{ crop_variety_map|tojson|safe }};
-const cropInfoUrl = "{{ url_for('crop_info_api') }}";
-const initialCrop = "{{ crop.get('crop', '') }}";
-const initialVariety = "{{ crop.get('variety', '') }}";
-const initialAddress = `{{ crop.get('gps_address', '') }}`;
-
-// ---------- 2. Dynamic GPS location + reverse geocoding ----------
-document.getElementById('getLocationBtn').addEventListener('click', function (e) {
-    e.preventDefault();
-    if (!navigator.geolocation) {
-        alert("Geolocation is not supported by this browser.");
-        return;
+<style>
+    /* Form-specific CSS variables */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: var(--space-xl);
+        margin-top: var(--space-lg);
     }
-    navigator.geolocation.getCurrentPosition(
-        function (pos) {
-            const lat = pos.coords.latitude.toFixed(6);
-            const lon = pos.coords.longitude.toFixed(6);
-            document.getElementById('gps_location').value = lat + ", " + lon;
-            fetchAddressFromCoords(lat, lon);
-        },
-        function (err) {
-            alert("Unable to fetch location: " + err.message);
+
+    .form-section {
+        background: var(--light-bg);
+        border-radius: var(--radius-lg);
+        padding: var(--space-lg);
+        border: 1px solid var(--light-gray);
+        transition: all var(--transition-normal);
+    }
+
+    .form-section:hover {
+        box-shadow: var(--shadow-sm);
+    }
+
+    .section-title {
+        font-size: 1.2rem;
+        color: var(--primary-dark);
+        margin-bottom: var(--space-lg);
+        padding-bottom: var(--space-sm);
+        border-bottom: 2px solid var(--light-gray);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+    }
+
+    .form-group {
+        margin-bottom: var(--space-lg);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: var(--space-sm);
+        font-size: 0.95rem;
+    }
+
+    .form-input {
+        padding: var(--space-md);
+        border: 2px solid var(--light-gray);
+        border-radius: var(--radius-md);
+        font-size: 1rem;
+        transition: all var(--transition-fast);
+        background: var(--white);
+        font-family: inherit;
+        width: 100%;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+
+    .info-field {
+        background: #f8f9fa !important;
+        color: var(--dark-gray);
+    }
+
+    .input-hint {
+        color: var(--medium-gray);
+        font-size: 0.85rem;
+        margin-top: var(--space-xs);
+        display: block;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-md);
+    }
+
+    .input-with-action {
+        display: flex;
+        gap: var(--space-md);
+        align-items: stretch;
+    }
+
+    .input-with-action .form-input {
+        flex: 1;
+    }
+
+    .action-btn {
+        background: linear-gradient(135deg, var(--secondary-green) 0%, var(--secondary-light) 100%);
+        color: var(--white);
+        border: none;
+        padding: var(--space-md) var(--space-lg);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-weight: 600;
+        transition: all var(--transition-normal);
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        min-width: fit-content;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+
+    .form-actions {
+        grid-column: 1 / -1;
+        text-align: center;
+        margin-top: var(--space-xl);
+        padding-top: var(--space-lg);
+        border-top: 1px solid var(--light-gray);
+    }
+
+    .btn-large {
+        padding: var(--space-lg) var(--space-xl);
+        font-size: 1.1rem;
+    }
+
+    .form-help {
+        margin-top: var(--space-lg);
+        padding: var(--space-md);
+        background: linear-gradient(135deg, #e7f3ff 0%, #d5edf7 100%);
+        border-radius: var(--radius-md);
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .form-help p {
+        margin: 0;
+        color: var(--primary-dark);
+    }
+
+    /* Progress Indicator */
+    .progress-indicator {
+        margin: var(--space-xl) 0;
+    }
+
+    .progress-steps {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+    }
+
+    .progress-steps::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--light-gray);
+        z-index: 1;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--light-gray);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        margin-bottom: var(--space-sm);
+        border: 3px solid var(--white);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .step.active .step-number {
+        background: var(--primary-blue);
+        color: var(--white);
+    }
+
+    .step.completed .step-number {
+        background: linear-gradient(135deg, var(--secondary-green) 0%, var(--secondary-light) 100%);
+        color: var(--white);
+    }
+
+    .step-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--medium-gray);
+    }
+
+    .step.active .step-label {
+        color: var(--primary-blue);
+    }
+
+    .step.completed .step-label {
+        color: var(--secondary-green);
+    }
+
+    /* Form Header */
+    .form-header {
+        text-align: center;
+        margin-bottom: var(--space-lg);
+    }
+
+    .form-subtitle {
+        color: var(--medium-gray);
+        font-size: 1.1rem;
+        margin-top: var(--space-sm);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: var(--space-md);
         }
-    );
-});
 
-function fetchAddressFromCoords(lat, lon) {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
-    fetch(url, {
-        headers: {
-            "Accept": "application/json"
+        .input-with-action {
+            flex-direction: column;
         }
-    })
-        .then(resp => resp.json())
-        .then(data => {
-            const addr = data.display_name || "";
-            document.getElementById('gps_address').value = addr;
-        })
-        .catch(err => {
-            console.error(err);
-        });
-}
 
-// ---------- 3. Populate varieties based on crop ----------
-const cropSelect = document.getElementById('cropSelect');
-const varietySelect = document.getElementById('varietySelect');
-
-function populateVarieties(cropName, selectedVariety) {
-    varietySelect.innerHTML = "";
-    const optDefault = document.createElement('option');
-    optDefault.value = "";
-    optDefault.textContent = "Select Variety";
-    varietySelect.appendChild(optDefault);
-
-    if (!cropName || !cropVarietyMap[cropName]) return;
-
-    cropVarietyMap[cropName].forEach(function (v) {
-        const opt = document.createElement('option');
-        opt.value = v;
-        opt.textContent = v;
-        if (selectedVariety && selectedVariety === v) {
-            opt.selected = true;
+        .info-grid {
+            grid-template-columns: 1fr;
         }
-        varietySelect.appendChild(opt);
+
+        .action-btn {
+            justify-content: center;
+        }
+
+        .progress-steps {
+            flex-wrap: wrap;
+            gap: var(--space-md);
+        }
+
+        .step {
+            flex: 1;
+            min-width: 100px;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .form-section {
+            padding: var(--space-md);
+        }
+
+        .form-grid {
+            gap: var(--space-md);
+        }
+    }
+</style>
+
+<script>
+    // ---------- Data from backend ----------
+    const cropVarietyMap = {{ crop_variety_map|tojson|safe }};
+    const cropInfoUrl = "{{ url_for('crop_info_api') }}";
+    const initialCrop = "{{ crop.get('crop', '') }}";
+    const initialVariety = "{{ crop.get('variety', '') }}";
+    const initialAddress = `{{ crop.get('gps_address', '') }}`;
+
+    // ---------- GPS Location with Enhanced UI ----------
+    document.getElementById('getLocationBtn').addEventListener('click', function (e) {
+        e.preventDefault();
+        
+        if (!navigator.geolocation) {
+            showNotification("Geolocation is not supported by this browser.", "error");
+            return;
+        }
+
+        const btn = this;
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="btn-icon">⏳</span> Detecting...';
+        btn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            function (pos) {
+                const lat = pos.coords.latitude.toFixed(6);
+                const lon = pos.coords.longitude.toFixed(6);
+                document.getElementById('gps_location').value = `${lat}, ${lon}`;
+                
+                showNotification('Location detected! Fetching address...', 'success');
+                fetchAddressFromCoords(lat, lon);
+                
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            },
+            function (err) {
+                let errorMsg = "Unable to fetch location: ";
+                switch(err.code) {
+                    case err.PERMISSION_DENIED:
+                        errorMsg += "Location access denied. Please allow location access.";
+                        break;
+                    case err.POSITION_UNAVAILABLE:
+                        errorMsg += "Location information unavailable.";
+                        break;
+                    case err.TIMEOUT:
+                        errorMsg += "Location request timed out.";
+                        break;
+                    default:
+                        errorMsg += err.message;
+                }
+                
+                showNotification(errorMsg, "error");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 60000
+            }
+        );
     });
-}
 
-cropSelect.addEventListener('change', function () {
-    populateVarieties(this.value, null);
-    document.getElementById('season').value = "";
-    document.getElementById('duration').value = "";
-    document.getElementById('recommended_npk').value = "";
-});
-
-// ---------- 4. Fetch season/duration/NPK once variety is chosen ----------
-function fetchCropInfo() {
-    const crop = cropSelect.value;
-    const variety = varietySelect.value;
-    if (!crop || !variety) return;
-
-    const url = cropInfoUrl + "?crop=" + encodeURIComponent(crop) +
-                "&variety=" + encodeURIComponent(variety);
-
-    fetch(url)
+    function fetchAddressFromCoords(lat, lon) {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+        
+        fetch(url, {
+            headers: {
+                "Accept": "application/json",
+                "User-Agent": "NRSC Farmer Advisor/1.0"
+            }
+        })
         .then(resp => {
-            if (!resp.ok) throw new Error("No data found");
+            if (!resp.ok) throw new Error('Network response was not ok');
             return resp.json();
         })
         .then(data => {
-            if (!data.ok) return;
-            document.getElementById('season').value = data.season || "";
-            document.getElementById('duration').value = data.duration || "";
-            document.getElementById('recommended_npk').value = data.recommended_npk || "";
+            const addr = data.display_name || "Address not found";
+            document.getElementById('gps_address').value = addr;
+            showNotification('Address fetched successfully!', 'success');
         })
         .catch(err => {
-            console.error(err);
+            console.error('Geocoding error:', err);
+            document.getElementById('gps_address').value = "Unable to fetch address";
+            showNotification('Could not fetch address details', 'warning');
         });
-}
+    }
 
-varietySelect.addEventListener('change', fetchCropInfo);
+    // ---------- Dynamic Variety Population ----------
+    const cropSelect = document.getElementById('cropSelect');
+    const varietySelect = document.getElementById('varietySelect');
 
-// ---------- 5. On page load ----------
-window.addEventListener('DOMContentLoaded', function () {
-    if (initialCrop) {
-        populateVarieties(initialCrop, initialVariety || null);
-        if (initialVariety) {
-            fetchCropInfo();
+    function populateVarieties(cropName, selectedVariety) {
+        varietySelect.innerHTML = "";
+        const optDefault = document.createElement('option');
+        optDefault.value = "";
+        optDefault.textContent = "Select Variety";
+        optDefault.disabled = true;
+        varietySelect.appendChild(optDefault);
+
+        if (!cropName || !cropVarietyMap[cropName]) {
+            varietySelect.disabled = true;
+            return;
         }
+
+        varietySelect.disabled = false;
+        cropVarietyMap[cropName].forEach(function (v) {
+            const opt = document.createElement('option');
+            opt.value = v;
+            opt.textContent = v;
+            if (selectedVariety && selectedVariety === v) {
+                opt.selected = true;
+            }
+            varietySelect.appendChild(opt);
+        });
     }
-    if (initialAddress) {
-        document.getElementById('gps_address').value = initialAddress;
+
+    cropSelect.addEventListener('change', function () {
+        populateVarieties(this.value, null);
+        clearCropInfo();
+    });
+
+    function clearCropInfo() {
+        document.getElementById('season').value = "";
+        document.getElementById('duration').value = "";
+        document.getElementById('recommended_npk').value = "";
     }
-});
+
+    // ---------- Fetch Crop Information ----------
+    function fetchCropInfo() {
+        const crop = cropSelect.value;
+        const variety = varietySelect.value;
+        
+        if (!crop || !variety) {
+            clearCropInfo();
+            return;
+        }
+
+        showLoading();
+        const url = cropInfoUrl + "?crop=" + encodeURIComponent(crop) +
+                    "&variety=" + encodeURIComponent(variety);
+
+        fetch(url)
+            .then(resp => {
+                if (!resp.ok) throw new Error("No data found for this variety");
+                return resp.json();
+            })
+            .then(data => {
+                if (!data.ok) {
+                    showNotification('No crop data found for selected variety', 'warning');
+                    return;
+                }
+                
+                document.getElementById('season').value = data.season || "";
+                document.getElementById('duration').value = data.duration || "";
+                document.getElementById('recommended_npk').value = data.recommended_npk || "";
+                
+                showNotification('Crop information loaded successfully!', 'success');
+            })
+            .catch(err => {
+                console.error(err);
+                showNotification('Failed to load crop information', 'error');
+            })
+            .finally(() => {
+                hideLoading();
+            });
+    }
+
+    varietySelect.addEventListener('change', fetchCropInfo);
+
+    // ---------- Notification System ----------
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+        `;
+
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? 'var(--secondary-green)' : 
+                         type === 'error' ? '#e74c3c' : 
+                         type === 'warning' ? '#f39c12' : 'var(--primary-blue)'};
+            color: white;
+            padding: var(--space-md) var(--space-lg);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // ---------- On Page Load ----------
+    window.addEventListener('DOMContentLoaded', function () {
+        if (initialCrop) {
+            populateVarieties(initialCrop, initialVariety || null);
+            if (initialVariety) {
+                setTimeout(fetchCropInfo, 100);
+            }
+        }
+        if (initialAddress) {
+            document.getElementById('gps_address').value = initialAddress;
+        }
+    });
+
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
 </script>
 {% endblock %}
