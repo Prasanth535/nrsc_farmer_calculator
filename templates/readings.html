@@ -1,280 +1,767 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="card">
-    <h2>Soil &amp; Environment Sensor Readings</h2>
-    <p>Reading {{ reading_no }} of {{ max_readings }}</p>
-
-    <div class="info-box">
-        <ol>
-            <li>Soil Nitrogen (N) – kg/ha</li>
-            <li>Soil Phosphorus (P) – kg/ha</li>
-            <li>Soil Potassium (K) – kg/ha</li>
-            <li>Soil Electrical Conductivity (EC)</li>
-            <li>Soil Temperature (°C)</li>
-            <li>Soil pH</li>
-            <li>Soil Moisture (%)</li>
-            <li>Air Temperature (°C)</li>
-            <li>Air Humidity (%)</li>
-            <li>Water / Soil TDS</li>
-        </ol>
+    <div class="readings-header">
+        <h2>Soil & Environment Sensor Readings</h2>
+        <div class="readings-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ (reading_no-1)/max_readings*100 }}%"></div>
+            </div>
+            <span class="progress-text">Reading {{ reading_no }} of {{ max_readings }}</span>
+        </div>
     </div>
 
-    <!-- Buttons to connect + read from ESP32 over Bluetooth -->
-    <div style="margin-bottom: 1rem; display:flex; gap:0.75rem; flex-wrap:wrap;">
-        <button type="button" id="btConnect" class="secondary-btn">
-            Connect to Sensor (Bluetooth)
-        </button>
-        <button type="button" id="btRead" class="secondary-btn" disabled>
-            Read values from Sensor
-        </button>
-        <span id="btStatus" style="align-self:center; font-size:0.9rem; color:#555;">
-            Not connected
-        </span>
+    <div class="sensor-guide">
+        <h3 class="guide-title">📋 Sensor Parameters Guide</h3>
+        <div class="guide-grid">
+            <div class="guide-item">
+                <span class="guide-number">1</span>
+                <span class="guide-text">Soil Nitrogen (N) – kg/ha</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">2</span>
+                <span class="guide-text">Soil Phosphorus (P) – kg/ha</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">3</span>
+                <span class="guide-text">Soil Potassium (K) – kg/ha</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">4</span>
+                <span class="guide-text">Soil Electrical Conductivity (EC)</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">5</span>
+                <span class="guide-text">Soil Temperature (°C)</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">6</span>
+                <span class="guide-text">Soil pH</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">7</span>
+                <span class="guide-text">Soil Moisture (%)</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">8</span>
+                <span class="guide-text">Air Temperature (°C)</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">9</span>
+                <span class="guide-text">Air Humidity (%)</span>
+            </div>
+            <div class="guide-item">
+                <span class="guide-number">10</span>
+                <span class="guide-text">Water / Soil TDS</span>
+            </div>
+        </div>
     </div>
 
-    <!-- The form is used only for layout; saving is done via JS (AJAX) -->
-    <form class="form-grid" onsubmit="return false;">
-        <label>Soil Nitrogen (N) (kg/ha)
-            <input type="number" step="0.01" name="soil_n" id="soil_n" value="">
-        </label>
-
-        <label>Soil Phosphorus (P) (kg/ha)
-            <input type="number" step="0.01" name="soil_p" id="soil_p" value="">
-        </label>
-
-        <label>Soil Potassium (K) (kg/ha)
-            <input type="number" step="0.01" name="soil_k" id="soil_k" value="">
-        </label>
-
-        <label>Soil Electrical Conductivity (EC)
-            <input type="number" step="0.01" name="ec" id="ec" value="">
-        </label>
-
-        <label>Soil Temperature (°C)
-            <input type="number" step="0.1" name="soil_temp" id="soil_temp" value="">
-        </label>
-
-        <label>Soil pH
-            <input type="number" step="0.01" name="ph" id="ph" value="">
-        </label>
-
-        <label>Soil Moisture (%)
-            <input type="number" step="0.1" name="soil_moisture" id="soil_moisture" value="">
-        </label>
-
-        <label>Air Temperature (°C)
-            <input type="number" step="0.1" name="air_temp" id="air_temp" value="">
-        </label>
-
-        <label>Air Humidity (%)
-            <input type="number" step="0.1" name="air_humidity" id="air_humidity" value="">
-        </label>
-
-        <label>Water / Soil TDS
-            <input type="number" step="0.1" name="tds" id="tds" value="">
-        </label>
-
-        <div class="button-row" style="margin-top:1.5rem;">
-            <button type="button" id="btnSaveReading" class="primary-btn">
-                Save this Reading
+    <!-- Bluetooth Connection Section -->
+    <div class="bluetooth-section">
+        <h3 class="section-title">🔗 Sensor Connection</h3>
+        <div class="bluetooth-controls">
+            <button type="button" id="btConnect" class="bluetooth-btn connect-btn">
+                <span class="btn-icon">📱</span>
+                Connect to Sensor
             </button>
+            <button type="button" id="btRead" class="bluetooth-btn read-btn" disabled>
+                <span class="btn-icon">📊</span>
+                Read Sensor Values
+            </button>
+            <div class="connection-status">
+                <div id="btStatus" class="status-indicator">
+                    <span class="status-dot"></span>
+                    Not Connected
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sensor Readings Form -->
+    <form class="readings-form">
+        <h3 class="section-title">🎯 Sensor Readings</h3>
+        
+        <div class="readings-grid">
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil Nitrogen (N) kg/ha</span>
+                    <input type="number" step="0.01" name="soil_n" id="soil_n" 
+                           placeholder="0.00" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil Phosphorus (P) kg/ha</span>
+                    <input type="number" step="0.01" name="soil_p" id="soil_p" 
+                           placeholder="0.00" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil Potassium (K) kg/ha</span>
+                    <input type="number" step="0.01" name="soil_k" id="soil_k" 
+                           placeholder="0.00" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil EC</span>
+                    <input type="number" step="0.01" name="ec" id="ec" 
+                           placeholder="0.00" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil Temp (°C)</span>
+                    <input type="number" step="0.1" name="soil_temp" id="soil_temp" 
+                           placeholder="0.0" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil pH</span>
+                    <input type="number" step="0.01" name="ph" id="ph" 
+                           placeholder="0.00" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Soil Moisture (%)</span>
+                    <input type="number" step="0.1" name="soil_moisture" id="soil_moisture" 
+                           placeholder="0.0" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Air Temp (°C)</span>
+                    <input type="number" step="0.1" name="air_temp" id="air_temp" 
+                           placeholder="0.0" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">Air Humidity (%)</span>
+                    <input type="number" step="0.1" name="air_humidity" id="air_humidity" 
+                           placeholder="0.0" class="form-input">
+                </label>
+            </div>
+
+            <div class="reading-group">
+                <label class="form-label">
+                    <span class="label-text">TDS</span>
+                    <input type="number" step="0.1" name="tds" id="tds" 
+                           placeholder="0.0" class="form-input">
+                </label>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="button" id="btnSaveReading" class="primary-btn btn-large">
+                <span class="btn-icon">💾</span>
+                Save Reading {{ reading_no }}
+            </button>
+            
             <button type="button" id="btnResetReadings" class="secondary-btn">
+                <span class="btn-icon">🔄</span>
                 Reset All Readings
             </button>
         </div>
     </form>
+
+    <!-- Previous Readings -->
+    {% if readings %}
+    <div class="previous-readings">
+        <h3 class="section-title">📋 Previous Readings ({{ readings|length }}/{{ max_readings }})</h3>
+        <div class="readings-summary">
+            {% for reading in readings %}
+            <div class="reading-badge">
+                <span class="badge-number">#{{ loop.index }}</span>
+                <small>N:{{ reading.soil_n|round(2) }} P:{{ reading.soil_p|round(2) }} K:{{ reading.soil_k|round(2) }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
+<style>
+    .readings-header {
+        text-align: center;
+        margin-bottom: var(--space-xl);
+    }
+
+    .readings-progress {
+        max-width: 400px;
+        margin: var(--space-lg) auto;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: var(--light-gray);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: var(--space-sm);
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--secondary-green), var(--primary-blue));
+        border-radius: 4px;
+        transition: width 0.5s ease;
+    }
+
+    .progress-text {
+        font-weight: 600;
+        color: var(--primary-dark);
+        font-size: 0.9rem;
+    }
+
+    .sensor-guide {
+        background: linear-gradient(135deg, #e8f4f8 0%, #d5edf7 100%);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        margin-bottom: var(--space-xl);
+        border-left: 4px solid var(--primary-blue);
+    }
+
+    .guide-title {
+        color: var(--primary-dark);
+        margin-bottom: var(--space-md);
+        font-size: 1.1rem;
+    }
+
+    .guide-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--space-sm);
+    }
+
+    .guide-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        padding: var(--space-sm);
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: var(--radius-sm);
+    }
+
+    .guide-number {
+        background: var(--primary-blue);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .guide-text {
+        font-size: 0.9rem;
+        color: var(--dark-gray);
+    }
+
+    .bluetooth-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        margin-bottom: var(--space-xl);
+        border: 2px solid var(--light-gray);
+    }
+
+    .bluetooth-controls {
+        display: flex;
+        gap: var(--space-md);
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .bluetooth-btn {
+        padding: var(--space-md) var(--space-lg);
+        border: none;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+    }
+
+    .connect-btn {
+        background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+        color: white;
+    }
+
+    .connect-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+    }
+
+    .read-btn {
+        background: linear-gradient(135deg, var(--secondary-green) 0%, var(--secondary-light) 100%);
+        color: white;
+    }
+
+    .read-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+
+    .bluetooth-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    .connection-status {
+        margin-left: auto;
+    }
+
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        font-weight: 600;
+        padding: var(--space-sm) var(--space-md);
+        background: white;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--light-gray);
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--medium-gray);
+        animation: pulse 2s infinite;
+    }
+
+    .status-indicator.connected .status-dot {
+        background: var(--secondary-green);
+    }
+
+    .readings-form {
+        margin-bottom: var(--space-xl);
+    }
+
+    .readings-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--space-lg);
+        margin-bottom: var(--space-xl);
+    }
+
+    .reading-group {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--light-gray);
+        transition: all var(--transition-normal);
+    }
+
+    .reading-group:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .previous-readings {
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        border-left: 4px solid var(--accent-gold);
+    }
+
+    .readings-summary {
+        display: flex;
+        gap: var(--space-sm);
+        flex-wrap: wrap;
+        margin-top: var(--space-md);
+    }
+
+    .reading-badge {
+        background: white;
+        padding: var(--space-sm) var(--space-md);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--light-gray);
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        font-size: 0.85rem;
+    }
+
+    .badge-number {
+        background: var(--primary-blue);
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: var(--space-md) var(--space-lg);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+        color: white;
+    }
+
+    .notification-success {
+        background: var(--secondary-green);
+    }
+
+    .notification-error {
+        background: #e74c3c;
+    }
+
+    .notification-warning {
+        background: #f39c12;
+    }
+
+    .notification-info {
+        background: var(--primary-blue);
+    }
+
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    @media (max-width: 768px) {
+        .bluetooth-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .connection-status {
+            margin-left: 0;
+            text-align: center;
+        }
+
+        .readings-grid {
+            grid-template-columns: 1fr;
+            gap: var(--space-md);
+        }
+
+        .reading-group {
+            padding: var(--space-md);
+        }
+
+        .guide-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
 <script>
-// ================== WEB BLUETOOTH SETUP ==================
+    // ================== WEB BLUETOOTH SETUP ==================
+    const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
+    const CHARACTERISTIC_UUID = '12345678-1234-5678-1234-56789abcdef1';
 
-// must match ESP32 sketch:
-const SERVICE_UUID        = '12345678-1234-5678-1234-56789abcdef0';
-const CHARACTERISTIC_UUID = '12345678-1234-5678-1234-56789abcdef1';
+    let btDevice = null;
+    let soilCharacteristic = null;
 
-let btDevice = null;
-let soilCharacteristic = null;
+    const btConnectBtn = document.getElementById('btConnect');
+    const btReadBtn = document.getElementById('btRead');
+    const btStatus = document.getElementById('btStatus');
 
-const btConnectBtn = document.getElementById('btConnect');
-const btReadBtn    = document.getElementById('btRead');
-const btStatus     = document.getElementById('btStatus');
+    const saveReadingUrl = "{{ url_for('api_save_reading') }}";
+    const resetReadingsUrl = "{{ url_for('api_reset_readings') }}";
 
-const saveReadingUrl  = "{{ url_for('api_save_reading') }}";
-const resetReadingsUrl = "{{ url_for('api_reset_readings') }}";
+    function setStatus(msg, isConnected = false) {
+        btStatus.textContent = msg;
+        btStatus.className = `status-indicator ${isConnected ? 'connected' : ''}`;
+    }
 
-function setStatus(msg) {
-    btStatus.textContent = msg;
-}
-
-// ---------- Bluetooth Connect ----------
-btConnectBtn.addEventListener('click', async () => {
-    try {
-        if (!navigator.bluetooth) {
-            alert("Web Bluetooth is not supported in this browser. Use Chrome or Edge.");
-            return;
-        }
-
-        setStatus('Requesting Bluetooth device…');
-
-        // Let browser show all devices, but we will select NRSC_SoilMonitor
-        btDevice = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: 'NRSC_SoilMonitor' }],
-            optionalServices: [SERVICE_UUID]
-        });
-
-        btDevice.addEventListener('gattserverdisconnected', () => {
-            soilCharacteristic = null;
-            btReadBtn.disabled = true;
-            setStatus('Disconnected');
-        });
-
-        setStatus('Connecting…');
-        const server = await btDevice.gatt.connect();
-        const service = await server.getPrimaryService(SERVICE_UUID);
-        soilCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-
-        // enable READ button
-        btReadBtn.disabled = false;
-        setStatus('Connected. Click "Read values from Sensor".');
-
-        // Enable notifications so ESP32 pushes latest packet
+    // ---------- Bluetooth Connection ----------
+    btConnectBtn.addEventListener('click', async () => {
         try {
-            await soilCharacteristic.startNotifications();
-            soilCharacteristic.addEventListener('characteristicvaluechanged', event => {
-                const value = event.target.value;
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(value.buffer);
+            if (!navigator.bluetooth) {
+                showNotification("Web Bluetooth is not supported in this browser. Use Chrome or Edge.", "error");
+                return;
+            }
 
-                console.log('BLE notify payload:', text);
-                fillSensorFieldsFromCSV(text);
+            setStatus('Searching for devices...');
+            btConnectBtn.innerHTML = '<span class="btn-icon">🔍</span> Searching...';
+            btConnectBtn.disabled = true;
+
+            btDevice = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: 'NRSC_SoilMonitor' }],
+                optionalServices: [SERVICE_UUID]
             });
-        } catch (e) {
-            console.warn('Could not start notifications, will rely on manual read:', e);
-        }
 
-    } catch (err) {
-        console.error(err);
-        // User closed the chooser or did not select a device
-        if (err && (err.name === 'NotFoundError' || String(err.message).toLowerCase().includes('cancelled'))) {
-            setStatus('Bluetooth device selection cancelled.');
+            btDevice.addEventListener('gattserverdisconnected', () => {
+                soilCharacteristic = null;
+                btReadBtn.disabled = true;
+                setStatus('Disconnected');
+                showNotification('Sensor disconnected', 'warning');
+            });
+
+            setStatus('Connecting to sensor...');
+            const server = await btDevice.gatt.connect();
+            const service = await server.getPrimaryService(SERVICE_UUID);
+            soilCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+            btReadBtn.disabled = false;
+            setStatus('Connected - Ready to read', true);
+            btConnectBtn.innerHTML = '<span class="btn-icon">✅</span> Connected';
+            
+            showNotification('Sensor connected successfully!', 'success');
+
+            // Enable notifications
+            try {
+                await soilCharacteristic.startNotifications();
+                soilCharacteristic.addEventListener('characteristicvaluechanged', event => {
+                    const value = event.target.value;
+                    const decoder = new TextDecoder('utf-8');
+                    const text = decoder.decode(value);
+                    fillSensorFieldsFromCSV(text);
+                    showNotification('Sensor data received automatically!', 'success');
+                });
+            } catch (e) {
+                console.warn('Notifications not supported, using manual read');
+            }
+
+        } catch (err) {
+            console.error('Bluetooth error:', err);
+            if (err.name === 'NotFoundError') {
+                showNotification('No NRSC soil sensor found nearby', 'error');
+            } else {
+                showNotification('Bluetooth connection failed: ' + err.message, 'error');
+            }
+            setStatus('Not connected');
+            btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
+            btConnectBtn.disabled = false;
+        }
+    });
+
+    // ---------- Read Sensor Data ----------
+    btReadBtn.addEventListener('click', async () => {
+        if (!soilCharacteristic) {
+            showNotification('Sensor not connected yet.', 'error');
             return;
         }
-        alert('Bluetooth error: ' + err.message);
-        setStatus('Not connected');
+
+        try {
+            setStatus('Reading sensor data...');
+            btReadBtn.innerHTML = '<span class="btn-icon">⏳</span> Reading...';
+            btReadBtn.disabled = true;
+
+            const value = await soilCharacteristic.readValue();
+            const decoder = new TextDecoder('utf-8');
+            const text = decoder.decode(value);
+
+            fillSensorFieldsFromCSV(text);
+            setStatus('Connected - Data received', true);
+            showNotification('Sensor readings updated successfully!', 'success');
+
+        } catch (err) {
+            console.error('Read error:', err);
+            showNotification('Error reading from sensor: ' + err.message, 'error');
+            setStatus('Connected - Read failed', true);
+        } finally {
+            btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
+            btReadBtn.disabled = false;
+        }
+    });
+
+    // ---------- Fill Sensor Fields ----------
+    function fillSensorFieldsFromCSV(csvText) {
+        const parts = csvText.trim().split(',');
+
+        const [
+            n, p, k, ec,
+            soilTemp, ph, moisture,
+            airTemp, airHumidity, tds
+        ] = parts;
+
+        document.getElementById('soil_n').value = n ?? "";
+        document.getElementById('soil_p').value = p ?? "";
+        document.getElementById('soil_k').value = k ?? "";
+        document.getElementById('ec').value = ec ?? "";
+        document.getElementById('soil_temp').value = soilTemp ?? "";
+        document.getElementById('ph').value = ph ?? "";
+        document.getElementById('soil_moisture').value = moisture ?? "";
+        document.getElementById('air_temp').value = airTemp ?? "";
+        document.getElementById('air_humidity').value = airHumidity ?? "";
+        document.getElementById('tds').value = tds ?? "";
+
+        // Highlight the updated fields
+        highlightUpdatedFields();
     }
-});
 
-// ---------- Read once (manual trigger) ----------
-btReadBtn.addEventListener('click', async () => {
-    if (!soilCharacteristic) {
-        alert('Sensor not connected yet.');
-        return;
-    }
-
-    try {
-        setStatus('Reading data from sensor…');
-        const value = await soilCharacteristic.readValue();
-        const decoder = new TextDecoder('utf-8');
-        const text = decoder.decode(value.buffer);
-
-        console.log('BLE read payload:', text);
-        fillSensorFieldsFromCSV(text);
-        setStatus('Values filled from sensor. You can now click "Save this Reading".');
-    } catch (err) {
-        console.error(err);
-        alert('Error reading from sensor: ' + err.message);
-        setStatus('Read failed');
-    }
-});
-
-// ---------- Helper: parse CSV and fill inputs ----------
-function fillSensorFieldsFromCSV(csvText) {
-    const parts = csvText.trim().split(',');
-
-    const [
-        n, p, k, ec,
-        soilTemp, ph, moisture,
-        airTemp, airHumidity, tds
-    ] = parts;
-
-    document.getElementById('soil_n').value        = n ?? "";
-    document.getElementById('soil_p').value        = p ?? "";
-    document.getElementById('soil_k').value        = k ?? "";
-    document.getElementById('ec').value            = ec ?? "";
-    document.getElementById('soil_temp').value     = soilTemp ?? "";
-    document.getElementById('ph').value            = ph ?? "";
-    document.getElementById('soil_moisture').value = moisture ?? "";
-    document.getElementById('air_temp').value      = airTemp ?? "";
-    document.getElementById('air_humidity').value  = airHumidity ?? "";
-    document.getElementById('tds').value           = tds ?? "";
-}
-
-// ================== SAVE / RESET via AJAX ==================
-
-const btnSave = document.getElementById('btnSaveReading');
-const btnReset = document.getElementById('btnResetReadings');
-
-btnSave.addEventListener('click', async () => {
-    const payload = {
-        soil_n:        document.getElementById('soil_n').value,
-        soil_p:        document.getElementById('soil_p').value,
-        soil_k:        document.getElementById('soil_k').value,
-        ec:            document.getElementById('ec').value,
-        soil_temp:     document.getElementById('soil_temp').value,
-        ph:            document.getElementById('ph').value,
-        soil_moisture: document.getElementById('soil_moisture').value,
-        air_temp:      document.getElementById('air_temp').value,
-        air_humidity:  document.getElementById('air_humidity').value,
-        tds:           document.getElementById('tds').value
-    };
-
-    try {
-        const resp = await fetch(saveReadingUrl, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(payload)
+    function highlightUpdatedFields() {
+        const fields = ['soil_n', 'soil_p', 'soil_k', 'ec', 'soil_temp', 'ph', 'soil_moisture', 'air_temp', 'air_humidity', 'tds'];
+        fields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            field.style.backgroundColor = '#e8f5e8';
+            field.style.borderColor = '#27ae60';
+            setTimeout(() => {
+                field.style.backgroundColor = '';
+                field.style.borderColor = '';
+            }, 2000);
         });
-
-        const data = await resp.json();
-        if (!data.ok) {
-            alert('Could not save reading on server.');
-            return;
-        }
-
-        setStatus(`Reading saved (${data.count}/10).`);
-
-        if (data.done) {
-            // After 10th reading go to calculation
-            window.location.href = "{{ url_for('calculate') }}";
-        }
-    } catch (err) {
-        console.error(err);
-        alert('Error saving reading: ' + err.message);
     }
-});
 
-btnReset.addEventListener('click', async () => {
-    if (!confirm('Clear all saved readings?')) return;
+    // ================== SAVE / RESET READINGS ==================
+    const btnSave = document.getElementById('btnSaveReading');
+    const btnReset = document.getElementById('btnResetReadings');
 
-    try {
-        const resp = await fetch(resetReadingsUrl, { method: 'POST' });
-        const data = await resp.json();
-        if (!data.ok) {
-            alert('Could not reset readings on server.');
+    btnSave.addEventListener('click', async () => {
+        const payload = {
+            soil_n: parseFloat(document.getElementById('soil_n').value) || 0,
+            soil_p: parseFloat(document.getElementById('soil_p').value) || 0,
+            soil_k: parseFloat(document.getElementById('soil_k').value) || 0,
+            ec: parseFloat(document.getElementById('ec').value) || 0,
+            soil_temp: parseFloat(document.getElementById('soil_temp').value) || 0,
+            ph: parseFloat(document.getElementById('ph').value) || 0,
+            soil_moisture: parseFloat(document.getElementById('soil_moisture').value) || 0,
+            air_temp: parseFloat(document.getElementById('air_temp').value) || 0,
+            air_humidity: parseFloat(document.getElementById('air_humidity').value) || 0,
+            tds: parseFloat(document.getElementById('tds').value) || 0
+        };
+
+        // Validate that at least one field has data
+        const hasData = Object.values(payload).some(val => val > 0);
+        if (!hasData) {
+            showNotification('Please enter sensor readings or connect to a sensor first.', 'warning');
             return;
         }
 
-        // clear fields
-        ['soil_n','soil_p','soil_k','ec','soil_temp','ph',
-         'soil_moisture','air_temp','air_humidity','tds'].forEach(id => {
+        try {
+            btnSave.innerHTML = '<span class="btn-icon">⏳</span> Saving...';
+            btnSave.disabled = true;
+
+            const resp = await fetch(saveReadingUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            const data = await resp.json();
+            if (!data.ok) {
+                throw new Error(data.error || 'Server error');
+            }
+
+            showNotification(`Reading ${data.count} saved successfully!`, 'success');
+
+            if (data.done) {
+                showNotification('All readings completed! Generating report...', 'success');
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('calculate') }}";
+                }, 1500);
+            } else {
+                // Clear fields for next reading
+                clearSensorFields();
+                btnSave.innerHTML = `<span class="btn-icon">💾</span> Save Reading ${data.count + 1}`;
+            }
+
+        } catch (err) {
+            console.error('Save error:', err);
+            showNotification('Error saving reading: ' + err.message, 'error');
+        } finally {
+            btnSave.disabled = false;
+        }
+    });
+
+    btnReset.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to clear all saved readings? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            btnReset.innerHTML = '<span class="btn-icon">⏳</span> Resetting...';
+            btnReset.disabled = true;
+            
+            const resp = await fetch(resetReadingsUrl, { 
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            const data = await resp.json();
+            
+            if (!data.ok) {
+                throw new Error(data.error || 'Server error');
+            }
+
+            clearSensorFields();
+            showNotification('All readings cleared successfully!', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+
+        } catch (err) {
+            console.error('Reset error:', err);
+            showNotification('Error resetting readings: ' + err.message, 'error');
+        } finally {
+            btnReset.innerHTML = '<span class="btn-icon">🔄</span> Reset All Readings';
+            btnReset.disabled = false;
+        }
+    });
+
+    function clearSensorFields() {
+        const fields = ['soil_n', 'soil_p', 'soil_k', 'ec', 'soil_temp', 'ph', 'soil_moisture', 'air_temp', 'air_humidity', 'tds'];
+        fields.forEach(id => {
             document.getElementById(id).value = '';
         });
-
-        setStatus('All readings cleared (0/10).');
-    } catch (err) {
-        console.error(err);
-        alert('Error resetting readings: ' + err.message);
     }
-});
+
+    // Notification system
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notif => notif.remove());
+
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <span class="notification-message">${message}</span>
+            <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+        `;
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    // Initialize button states
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Sensor readings page loaded');
+        console.log('Save URL:', saveReadingUrl);
+        console.log('Reset URL:', resetReadingsUrl);
+    });
 </script>
 {% endblock %}
