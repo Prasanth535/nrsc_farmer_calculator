@@ -2,24 +2,98 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NRSC Farmer Advisor</title>
+    <title>NRSC Farmer Advisor - Smart Agriculture Solutions</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NRSC Farmer Advisor - Advanced soil testing and crop recommendation system">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-<header class="header">
-    <div class="logo-title">
-        <img src="{{ url_for('static', filename='app_logo.png') }}" alt="NRSC Farmer Advisor Logo" class="logo">
-        <h1>NRSC Farmer Advisor</h1>
+    <!-- Animated Background Elements -->
+    <div class="bg-animation">
+        <div class="bg-circle bg-circle-1"></div>
+        <div class="bg-circle bg-circle-2"></div>
+        <div class="bg-circle bg-circle-3"></div>
     </div>
-</header>
 
-<main class="content">
-    {% block content %}{% endblock %}
-</main>
+    <header class="header">
+        <div class="container">
+            <div class="logo-title">
+                <img src="{{ url_for('static', filename='app_logo.png') }}" alt="NRSC Farmer Advisor Logo" class="logo">
+                <div class="header-text">
+                    <h1>NRSC Farmer Advisor</h1>
+                    <p class="tagline">Smart Agriculture • Precision Farming • Sustainable Growth</p>
+                </div>
+            </div>
+        </div>
+    </header>
 
-<footer class="footer">
-    <p>NRSC Farmer Advisor &copy; 2025</p>
-</footer>
+    <main class="content">
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>&copy; 2025 NRSC Farmer Advisor. Empowering farmers with technology.</p>
+                <div class="footer-links">
+                    <span>Developed with ❤️ for Indian Agriculture</span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-spinner" style="display: none;">
+        <div class="spinner"></div>
+        <p>Processing your request...</p>
+    </div>
+
+    <script>
+        // Global loading handler
+        function showLoading() {
+            document.getElementById('loadingSpinner').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+
+        // Add loading to all form submissions
+        document.addEventListener('DOMContentLoaded', function() {
+            const forms = document.querySelectorAll('form');
+            forms.forEach(form => {
+                form.addEventListener('submit', function() {
+                    showLoading();
+                });
+            });
+
+            // Add smooth transitions to cards
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    card.style.transition = 'all 0.6s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 100);
+            });
+        });
+
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                document.title = 'Come back to NRSC Farmer Advisor';
+            } else {
+                document.title = 'NRSC Farmer Advisor - Smart Agriculture Solutions';
+            }
+        });
+    </script>
 </body>
 </html>
