@@ -506,7 +506,7 @@
     // detect if running inside Android WebView with the native bridge exposed
     const isAndroidApp = (typeof window.AndroidNative !== 'undefined');
 
-    // Provide a unified entry point from native -> web for sensor data/events
+    // ================== UPDATED onSensorData HANDLER ==================
     window.onSensorData = function(payload) {
         // payload may be an object (from native) or a string (CSV or JSON)
         try {
@@ -519,25 +519,49 @@
             // If native sent an event object
             if (data && data.event) {
                 const ev = data.event;
+
                 if (ev === 'connected') {
                     setStatus('Connected - Ready to read', true);
                     btReadBtn.disabled = false;
+                    btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
                     btConnectBtn.innerHTML = '<span class="btn-icon">✅</span> Connected';
+                    btConnectBtn.disabled = true;
                     showNotification('Sensor connected (native)', 'success');
+
                 } else if (ev === 'disconnected' || ev === 'disconnected_by_app') {
                     setStatus('Disconnected');
                     btReadBtn.disabled = true;
+                    btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
                     btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
+                    btConnectBtn.disabled = false;
                     showNotification('Sensor disconnected', 'warning');
+
                 } else if (ev === 'scan_started') {
                     setStatus('Scanning...');
+                    btConnectBtn.innerHTML = '<span class="btn-icon">🔍</span> Scanning...';
+                    btConnectBtn.disabled = true;
+
+                } else if (ev === 'scan_stopped') {
+                    if (!btStatus.classList.contains('connected')) {
+                        setStatus('Not connected');
+                        btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
+                        btConnectBtn.disabled = false;
+                    }
+
+                } else if (ev === 'reconnect_attempt') {
+                    setStatus('Reconnecting to sensor...');
+
+                } else if (ev === 'reconnect_failed') {
+                    setStatus('Reconnect failed');
+                    btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
+                    btConnectBtn.disabled = false;
+                    showNotification('Failed to reconnect to sensor.', 'error');
                 }
                 return;
             }
 
             // If payload looks like sensor JSON
             if (data && (data.N !== undefined || data.n !== undefined)) {
-                // Accept either capital or lower keys
                 const n = data.N ?? data.n ?? '';
                 const p = data.P ?? data.p ?? '';
                 const k = data.K ?? data.k ?? '';
@@ -559,9 +583,15 @@
                 document.getElementById('air_temp').value = airTemp;
                 document.getElementById('air_humidity').value = airHumidity;
                 document.getElementById('tds').value = tds;
+
                 highlightUpdatedFields();
                 showNotification('Sensor data received (native)', 'success');
                 setStatus('Connected - Data received', true);
+
+                // IMPORTANT: re-enable the Read button after data arrives
+                btReadBtn.disabled = false;
+                btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
+
                 return;
             }
 
