@@ -484,7 +484,7 @@
 </style>
 
 <script>
-    // ================== WEB BLUETOOTH SETUP ==================
+    // ================== WEB vs ANDROID NATIVE BRIDGE ==================
     const SERVICE_UUID = '12345678-1234-5678-1234-56789abcdef0';
     const CHARACTERISTIC_UUID = '12345678-1234-5678-1234-56789abcdef1';
 
@@ -503,97 +503,212 @@
         btStatus.className = `status-indicator ${isConnected ? 'connected' : ''}`;
     }
 
-    // ---------- Bluetooth Connection ----------
-    btConnectBtn.addEventListener('click', async () => {
+    // detect if running inside Android WebView with the native bridge exposed
+    const isAndroidApp = (typeof window.AndroidNative !== 'undefined');
+
+    // Provide a unified entry point from native -> web for sensor data/events
+    window.onSensorData = function(payload) {
+        // payload may be an object (from native) or a string (CSV or JSON)
         try {
-            if (!navigator.bluetooth) {
-                showNotification("Web Bluetooth is not supported in this browser. Use Chrome or Edge.", "error");
+            let data = payload;
+            if (typeof payload === 'string') {
+                // try parse JSON first
+                try { data = JSON.parse(payload); } catch (e) { /* not JSON */ }
+            }
+
+            // If native sent an event object
+            if (data && data.event) {
+                const ev = data.event;
+                if (ev === 'connected') {
+                    setStatus('Connected - Ready to read', true);
+                    btReadBtn.disabled = false;
+                    btConnectBtn.innerHTML = '<span class="btn-icon">✅</span> Connected';
+                    showNotification('Sensor connected (native)', 'success');
+                } else if (ev === 'disconnected' || ev === 'disconnected_by_app') {
+                    setStatus('Disconnected');
+                    btReadBtn.disabled = true;
+                    btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
+                    showNotification('Sensor disconnected', 'warning');
+                } else if (ev === 'scan_started') {
+                    setStatus('Scanning...');
+                }
                 return;
             }
 
-            setStatus('Searching for devices...');
-            btConnectBtn.innerHTML = '<span class="btn-icon">🔍</span> Searching...';
-            btConnectBtn.disabled = true;
+            // If payload looks like sensor JSON
+            if (data && (data.N !== undefined || data.n !== undefined)) {
+                // Accept either capital or lower keys
+                const n = data.N ?? data.n ?? '';
+                const p = data.P ?? data.p ?? '';
+                const k = data.K ?? data.k ?? '';
+                const ec = data.EC ?? data.ec ?? '';
+                const soilTemp = data.soil_temp ?? data.soilTemp ?? '';
+                const ph = data.ph ?? '';
+                const moisture = data.soil_moisture ?? data.moisture ?? '';
+                const airTemp = data.air_temp ?? data.airTemp ?? '';
+                const airHumidity = data.air_humidity ?? data.airHumidity ?? '';
+                const tds = data.tds ?? '';
 
-            btDevice = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: 'NRSC_SoilMonitor' }],
-                optionalServices: [SERVICE_UUID]
-            });
+                document.getElementById('soil_n').value = n;
+                document.getElementById('soil_p').value = p;
+                document.getElementById('soil_k').value = k;
+                document.getElementById('ec').value = ec;
+                document.getElementById('soil_temp').value = soilTemp;
+                document.getElementById('ph').value = ph;
+                document.getElementById('soil_moisture').value = moisture;
+                document.getElementById('air_temp').value = airTemp;
+                document.getElementById('air_humidity').value = airHumidity;
+                document.getElementById('tds').value = tds;
+                highlightUpdatedFields();
+                showNotification('Sensor data received (native)', 'success');
+                setStatus('Connected - Data received', true);
+                return;
+            }
 
-            btDevice.addEventListener('gattserverdisconnected', () => {
-                soilCharacteristic = null;
-                btReadBtn.disabled = true;
-                setStatus('Disconnected');
-                showNotification('Sensor disconnected', 'warning');
-            });
+            // Otherwise treat payload as CSV string
+            if (typeof payload === 'string') {
+                fillSensorFieldsFromCSV(payload);
+            }
+        } catch (err) {
+            console.error('onSensorData parse error', err, payload);
+        }
+    };
 
-            setStatus('Connecting to sensor...');
-            const server = await btDevice.gatt.connect();
-            const service = await server.getPrimaryService(SERVICE_UUID);
-            soilCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+    // If running inside Android app, override UI to use native bridge
+    if (isAndroidApp) {
+        console.log('Running inside Android WebView - using native BLE');
 
-            btReadBtn.disabled = false;
-            setStatus('Connected - Ready to read', true);
-            btConnectBtn.innerHTML = '<span class="btn-icon">✅</span> Connected';
-            
-            showNotification('Sensor connected successfully!', 'success');
-
-            // Enable notifications
+        // Hide any Web Bluetooth warning elements that mention "Web Bluetooth"
+        document.querySelectorAll('*').forEach(el => {
             try {
-                await soilCharacteristic.startNotifications();
-                soilCharacteristic.addEventListener('characteristicvaluechanged', event => {
-                    const value = event.target.value;
-                    const decoder = new TextDecoder('utf-8');
-                    const text = decoder.decode(value);
-                    fillSensorFieldsFromCSV(text);
-                    showNotification('Sensor data received automatically!', 'success');
-                });
+                if (el.innerText && el.innerText.toLowerCase().includes('web bluetooth')) {
+                    el.style.display = 'none';
+                }
+            } catch (e) { /* ignore nodes that throw */ }
+        });
+
+        // Connect button calls native startScan
+        btConnectBtn.onclick = function() {
+            try {
+                AndroidNative.startScan();
+                setStatus('Scanning for sensor...');
+                btConnectBtn.innerHTML = '<span class="btn-icon">🔍</span> Scanning...';
+                btConnectBtn.disabled = true;
+                showNotification('Scanning for sensor (native)...', 'info');
             } catch (e) {
-                console.warn('Notifications not supported, using manual read');
+                console.error('AndroidNative.startScan error', e);
+                showNotification('Native BLE unavailable', 'error');
+            }
+        };
+
+        // Read button triggers native readNow
+        btReadBtn.onclick = function() {
+            try {
+                AndroidNative.readNow();
+                setStatus('Reading sensor data...');
+                btReadBtn.innerHTML = '<span class="btn-icon">⏳</span> Reading...';
+                btReadBtn.disabled = true;
+            } catch (e) {
+                console.error('AndroidNative.readNow error', e);
+                showNotification('Native read not available', 'error');
+            }
+        };
+
+    } else {
+        // Not in Android WebView: keep original Web Bluetooth handlers
+
+        btConnectBtn.addEventListener('click', async () => {
+            try {
+                if (!navigator.bluetooth) {
+                    showNotification("Web Bluetooth is not supported in this browser. Use Chrome or Edge.", "error");
+                    return;
+                }
+
+                setStatus('Searching for devices...');
+                btConnectBtn.innerHTML = '<span class="btn-icon">🔍</span> Searching...';
+                btConnectBtn.disabled = true;
+
+                btDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'NRSC_SoilMonitor' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                btDevice.addEventListener('gattserverdisconnected', () => {
+                    soilCharacteristic = null;
+                    btReadBtn.disabled = true;
+                    setStatus('Disconnected');
+                    showNotification('Sensor disconnected', 'warning');
+                });
+
+                setStatus('Connecting to sensor...');
+                btConnectBtn.disabled = true;
+
+                const server = await btDevice.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                soilCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+
+                btReadBtn.disabled = false;
+                setStatus('Connected - Ready to read', true);
+                btConnectBtn.innerHTML = '<span class="btn-icon">✅</span> Connected';
+                showNotification('Sensor connected successfully!', 'success');
+
+                // Enable notifications
+                try {
+                    await soilCharacteristic.startNotifications();
+                    soilCharacteristic.addEventListener('characteristicvaluechanged', event => {
+                        const value = event.target.value;
+                        const decoder = new TextDecoder('utf-8');
+                        const text = decoder.decode(value);
+                        fillSensorFieldsFromCSV(text);
+                        showNotification('Sensor data received automatically!', 'success');
+                    });
+                } catch (e) {
+                    console.warn('Notifications not supported, using manual read');
+                }
+
+            } catch (err) {
+                console.error('Bluetooth error:', err);
+                if (err.name === 'NotFoundError') {
+                    showNotification('No NRSC soil sensor found nearby', 'error');
+                } else {
+                    showNotification('Bluetooth connection failed: ' + err.message, 'error');
+                }
+                setStatus('Not connected');
+                btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
+                btConnectBtn.disabled = false;
+            }
+        });
+
+        // ---------- Read Sensor Data ----------
+        btReadBtn.addEventListener('click', async () => {
+            if (!soilCharacteristic) {
+                showNotification('Sensor not connected yet.', 'error');
+                return;
             }
 
-        } catch (err) {
-            console.error('Bluetooth error:', err);
-            if (err.name === 'NotFoundError') {
-                showNotification('No NRSC soil sensor found nearby', 'error');
-            } else {
-                showNotification('Bluetooth connection failed: ' + err.message, 'error');
+            try {
+                setStatus('Reading sensor data...');
+                btReadBtn.innerHTML = '<span class="btn-icon">⏳</span> Reading...';
+                btReadBtn.disabled = true;
+
+                const value = await soilCharacteristic.readValue();
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(value);
+
+                fillSensorFieldsFromCSV(text);
+                setStatus('Connected - Data received', true);
+                showNotification('Sensor readings updated successfully!', 'success');
+
+            } catch (err) {
+                console.error('Read error:', err);
+                showNotification('Error reading from sensor: ' + err.message, 'error');
+                setStatus('Connected - Read failed', true);
+            } finally {
+                btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
+                btReadBtn.disabled = false;
             }
-            setStatus('Not connected');
-            btConnectBtn.innerHTML = '<span class="btn-icon">📱</span> Connect to Sensor';
-            btConnectBtn.disabled = false;
-        }
-    });
-
-    // ---------- Read Sensor Data ----------
-    btReadBtn.addEventListener('click', async () => {
-        if (!soilCharacteristic) {
-            showNotification('Sensor not connected yet.', 'error');
-            return;
-        }
-
-        try {
-            setStatus('Reading sensor data...');
-            btReadBtn.innerHTML = '<span class="btn-icon">⏳</span> Reading...';
-            btReadBtn.disabled = true;
-
-            const value = await soilCharacteristic.readValue();
-            const decoder = new TextDecoder('utf-8');
-            const text = decoder.decode(value);
-
-            fillSensorFieldsFromCSV(text);
-            setStatus('Connected - Data received', true);
-            showNotification('Sensor readings updated successfully!', 'success');
-
-        } catch (err) {
-            console.error('Read error:', err);
-            showNotification('Error reading from sensor: ' + err.message, 'error');
-            setStatus('Connected - Read failed', true);
-        } finally {
-            btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
-            btReadBtn.disabled = false;
-        }
-    });
+        });
+    }
 
     // ---------- Fill Sensor Fields ----------
     function fillSensorFieldsFromCSV(csvText) {
@@ -762,6 +877,9 @@
         console.log('Sensor readings page loaded');
         console.log('Save URL:', saveReadingUrl);
         console.log('Reset URL:', resetReadingsUrl);
+
+        // ensure read button disabled initially
+        btReadBtn.disabled = true;
     });
 </script>
 {% endblock %}
