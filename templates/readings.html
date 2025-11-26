@@ -5,7 +5,7 @@
         <h2>Soil & Environment Sensor Readings</h2>
         <div class="readings-progress">
             <div class="progress-bar">
-                <div class="progress-fill" style="width: {{ (reading_no-1)/max_readings*100 }}%"></div>
+                <div class="progress-fill" style="width: {{ ((reading_no-1) if (reading_no-1) < max_readings else max_readings) / max_readings * 100 }}%"></div>
             </div>
             <span class="progress-text">Reading {{ reading_no }} of {{ max_readings }}</span>
         </div>
@@ -173,6 +173,12 @@
             <button type="button" id="btnResetReadings" class="secondary-btn">
                 <span class="btn-icon">🔄</span>
                 Reset All Readings
+            </button>
+
+            <!-- NEW: Generate Report button (enabled only after >= 10 readings) -->
+            <button type="button" id="btnGenerateReport" class="primary-btn btn-large" disabled>
+                <span class="btn-icon">📑</span>
+                Generate Report
             </button>
         </div>
     </form>
@@ -498,6 +504,30 @@
     const saveReadingUrl = "{{ url_for('api_save_reading') }}";
     const resetReadingsUrl = "{{ url_for('api_reset_readings') }}";
 
+    // NEW: reading count & max readings for JS logic
+    let currentReadingCount = {{ readings|length }};
+    const maxReadings = {{ max_readings }};
+    const btnGenerate = document.getElementById('btnGenerateReport');
+
+    function updateGenerateButtonState() {
+        if (currentReadingCount >= maxReadings) {
+            btnGenerate.disabled = false;
+        } else {
+            btnGenerate.disabled = true;
+        }
+    }
+
+    function updateProgressUI() {
+        const progressFill = document.querySelector('.progress-fill');
+        const progressText = document.querySelector('.progress-text');
+        if (!progressFill || !progressText) return;
+
+        const cappedCount = Math.min(currentReadingCount, maxReadings);
+        const percent = (cappedCount / maxReadings) * 100;
+        progressFill.style.width = percent + '%';
+        progressText.textContent = `Reading ${currentReadingCount + 1} of ${maxReadings}`;
+    }
+
     function setStatus(msg, isConnected = false) {
         btStatus.textContent = msg;
         btStatus.className = `status-indicator ${isConnected ? 'connected' : ''}`;
@@ -508,15 +538,12 @@
 
     // ================== UPDATED onSensorData HANDLER ==================
     window.onSensorData = function(payload) {
-        // payload may be an object (from native) or a string (CSV or JSON)
         try {
             let data = payload;
             if (typeof payload === 'string') {
-                // try parse JSON first
                 try { data = JSON.parse(payload); } catch (e) { /* not JSON */ }
             }
 
-            // If native sent an event object
             if (data && data.event) {
                 const ev = data.event;
 
@@ -560,7 +587,6 @@
                 return;
             }
 
-            // If payload looks like sensor JSON
             if (data && (data.N !== undefined || data.n !== undefined)) {
                 const n = data.N ?? data.n ?? '';
                 const p = data.P ?? data.p ?? '';
@@ -588,14 +614,12 @@
                 showNotification('Sensor data received (native)', 'success');
                 setStatus('Connected - Data received', true);
 
-                // IMPORTANT: re-enable the Read button after data arrives
                 btReadBtn.disabled = false;
                 btReadBtn.innerHTML = '<span class="btn-icon">📊</span> Read Sensor Values';
 
                 return;
             }
 
-            // Otherwise treat payload as CSV string
             if (typeof payload === 'string') {
                 fillSensorFieldsFromCSV(payload);
             }
@@ -604,20 +628,17 @@
         }
     };
 
-    // If running inside Android app, override UI to use native bridge
     if (isAndroidApp) {
         console.log('Running inside Android WebView - using native BLE');
 
-        // Hide any Web Bluetooth warning elements that mention "Web Bluetooth"
         document.querySelectorAll('*').forEach(el => {
             try {
                 if (el.innerText && el.innerText.toLowerCase().includes('web bluetooth')) {
                     el.style.display = 'none';
                 }
-            } catch (e) { /* ignore nodes that throw */ }
+            } catch (e) { /* ignore */ }
         });
 
-        // Connect button calls native startScan
         btConnectBtn.onclick = function() {
             try {
                 AndroidNative.startScan();
@@ -631,7 +652,6 @@
             }
         };
 
-        // Read button triggers native readNow
         btReadBtn.onclick = function() {
             try {
                 AndroidNative.readNow();
@@ -645,8 +665,6 @@
         };
 
     } else {
-        // Not in Android WebView: keep original Web Bluetooth handlers
-
         btConnectBtn.addEventListener('click', async () => {
             try {
                 if (!navigator.bluetooth) {
@@ -682,7 +700,6 @@
                 btConnectBtn.innerHTML = '<span class="btn-icon">✅</span> Connected';
                 showNotification('Sensor connected successfully!', 'success');
 
-                // Enable notifications
                 try {
                     await soilCharacteristic.startNotifications();
                     soilCharacteristic.addEventListener('characteristicvaluechanged', event => {
@@ -709,7 +726,6 @@
             }
         });
 
-        // ---------- Read Sensor Data ----------
         btReadBtn.addEventListener('click', async () => {
             if (!soilCharacteristic) {
                 showNotification('Sensor not connected yet.', 'error');
@@ -740,7 +756,6 @@
         });
     }
 
-    // ---------- Fill Sensor Fields ----------
     function fillSensorFieldsFromCSV(csvText) {
         const parts = csvText.trim().split(',');
 
@@ -761,7 +776,6 @@
         document.getElementById('air_humidity').value = airHumidity ?? "";
         document.getElementById('tds').value = tds ?? "";
 
-        // Highlight the updated fields
         highlightUpdatedFields();
     }
 
@@ -796,7 +810,6 @@
             tds: parseFloat(document.getElementById('tds').value) || 0
         };
 
-        // Validate that at least one field has data
         const hasData = Object.values(payload).some(val => val > 0);
         if (!hasData) {
             showNotification('Please enter sensor readings or connect to a sensor first.', 'warning');
@@ -818,18 +831,14 @@
                 throw new Error(data.error || 'Server error');
             }
 
+            currentReadingCount = data.count;
             showNotification(`Reading ${data.count} saved successfully!`, 'success');
 
-            if (data.done) {
-                showNotification('All readings completed! Generating report...', 'success');
-                setTimeout(() => {
-                    window.location.href = "{{ url_for('calculate') }}";
-                }, 1500);
-            } else {
-                // Clear fields for next reading
-                clearSensorFields();
-                btnSave.innerHTML = `<span class="btn-icon">💾</span> Save Reading ${data.count + 1}`;
-            }
+            clearSensorFields();
+            btnSave.innerHTML = `<span class="btn-icon">💾</span> Save Reading ${data.count + 1}`;
+
+            updateGenerateButtonState();
+            updateProgressUI();
 
         } catch (err) {
             console.error('Save error:', err);
@@ -859,6 +868,10 @@
             }
 
             clearSensorFields();
+            currentReadingCount = 0;
+            updateGenerateButtonState();
+            updateProgressUI();
+
             showNotification('All readings cleared successfully!', 'success');
             setTimeout(() => {
                 window.location.reload();
@@ -880,9 +893,17 @@
         });
     }
 
+    // NEW: Generate Report button handler
+    btnGenerate.addEventListener('click', () => {
+        if (currentReadingCount < maxReadings) {
+            showNotification(`Please complete at least ${maxReadings} readings before generating the report.`, 'warning');
+            return;
+        }
+        window.location.href = "{{ url_for('calculate') }}";
+    });
+
     // Notification system
     function showNotification(message, type = 'info') {
-        // Remove existing notifications
         const existingNotifications = document.querySelectorAll('.notification');
         existingNotifications.forEach(notif => notif.remove());
 
@@ -908,8 +929,9 @@
         console.log('Save URL:', saveReadingUrl);
         console.log('Reset URL:', resetReadingsUrl);
 
-        // ensure read button disabled initially
         btReadBtn.disabled = true;
+        updateGenerateButtonState();
+        updateProgressUI();
     });
 </script>
 {% endblock %}
