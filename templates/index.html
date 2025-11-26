@@ -9,7 +9,7 @@
         <p class="welcome-subtitle">Revolutionizing Agriculture with Smart Technology</p>
     </div>
 
-    <!-- LANGUAGE SELECTION (unchanged) -->
+    <!-- Language selection (your original block) -->
     <div class="language-section">
         <h3 class="text-center">Choose Your Language</h3>
         <p class="text-center mb-1">Select your preferred language to continue</p>
@@ -43,7 +43,7 @@
         </form>
     </div>
 
-    <!-- FEATURES BLOCK (unchanged) -->
+    <!-- Features (your original block) -->
     <div class="features-grid">
         <div class="feature-item">
             <div class="feature-icon">📊</div>
@@ -62,100 +62,52 @@
         </div>
     </div>
 
+    <!-- Recent Reports section -->
+    {% if reports and reports|length > 0 %}
+    <div class="reports-card">
+        <div class="reports-header">
+            <h3>Recent Reports</h3>
+            <small>Click a report to open it again</small>
+        </div>
+        <ul class="reports-list">
+            {% for rep in reports %}
+            <li class="reports-item">
+                <div class="reports-info">
+                    <div class="reports-title">
+                        {{ rep.crop_name or 'Crop' }}
+                        {% if rep.variety_name %}
+                            - {{ rep.variety_name }}
+                        {% endif %}
+                    </div>
+                    <div class="reports-meta">
+                        <span>Farmer: {{ rep.farmer_name or 'Not specified' }}</span>
+                        {% if rep.created_at %}
+                        <span>Created:
+                            {{ rep.created_at.strftime('%d-%m-%Y %H:%M') }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="reports-actions">
+                    <a href="{{ url_for('report_view', report_id=rep.id) }}"
+                       class="btn-primary-sm">
+                        Open report
+                    </a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <!-- Take new readings button -->
     <div class="welcome-footer">
         <p class="text-center">
-            <small></small>
-        </p>
-    </div>
-
-    <!-- ========== NEW: OLD REPORTS + NOTIFICATIONS ========== -->
-    <div class="reports-wrapper">
-        <h3 class="text-center">Previous Soil Analysis Reports</h3>
-        <p class="text-center mb-1">
-            View your old reports or start a fresh session with new sensor readings.
-        </p>
-
-        <!-- Take new readings button -->
-        <div class="reports-actions">
-            <a href="{{ url_for('farmer_details') }}" class="primary-btn">
-                <span class="btn-icon">🧪</span>
-                Take New Readings
+            <a href="{{ url_for('farmer_details') }}" class="btn-primary-sm">
+                Take new readings
             </a>
-        </div>
-
-        <!-- Old reports list -->
-        {% if recent_reports %}
-        <div class="reports-section">
-            <table class="readings-table reports-table">
-                <thead>
-                    <tr>
-                        <th>Report ID</th>
-                        <th>Generated On</th>
-                        <th>Crop & Variety</th>
-                        <th>Land Area (ha)</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in recent_reports %}
-                    <tr>
-                        <td>FA-{{ "%06d"|format(r.id) }}</td>
-                        <td>
-                            {% if r.created_at %}
-                                {{ r.created_at.strftime('%Y-%m-%d %H:%M') }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {{ r.crop_name or '-' }}
-                            {% if r.variety_name %}
-                                - {{ r.variety_name }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if r.land_area_ha is not none %}
-                                {{ "%.2f"|format(r.land_area_ha) }}
-                            {% else %}
-                                -
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{{ url_for('report', report_id=r.id) }}" class="secondary-btn reports-view-btn">
-                                View Report
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="text-center no-reports-note">
-            No previous reports found yet. Start by taking new readings.
         </p>
-        {% endif %}
-
-        <!-- Upcoming notifications (fertilizer / irrigation reminders) -->
-        {% if upcoming_notifications %}
-        <div class="notifications-section">
-            <h4 class="text-center notifications-title">Upcoming Schedule Reminders</h4>
-            <ul class="notifications-list">
-                {% for n in upcoming_notifications %}
-                <li class="notification-item">
-                    <span class="notification-date">{{ n.date }}</span>
-                    <span class="notification-text">
-                        {{ n.message }}
-                        {% if n.report_id %}
-                            (Report FA-{{ "%06d"|format(n.report_id) }})
-                        {% endif %}
-                    </span>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
     </div>
-    <!-- ========== END NEW SECTION ========== -->
-
 </div>
 
 <style>
@@ -281,83 +233,74 @@
         font-size: 0.85rem;
     }
 
+    /* Recent reports styles */
+    .reports-card {
+        margin-top: var(--space-xl);
+        padding: var(--space-lg);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--light-gray);
+        background: var(--light-bg);
+        text-align: left;
+    }
+
+    .reports-header h3 {
+        margin: 0;
+    }
+
+    .reports-header small {
+        color: var(--medium-gray);
+    }
+
+    .reports-list {
+        list-style: none;
+        margin: var(--space-md) 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
+    }
+
+    .reports-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-md);
+        border-radius: var(--radius-md);
+        background: var(--white);
+        border: 1px solid var(--light-gray);
+    }
+
+    .reports-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .reports-meta {
+        font-size: 0.85rem;
+        color: var(--medium-gray);
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .reports-actions .btn-primary-sm {
+        text-decoration: none;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: none;
+        font-size: 0.85rem;
+        background: var(--primary-blue);
+        color: #fff;
+    }
+
+    .btn-primary-sm:hover {
+        opacity: 0.9;
+    }
+
     .welcome-footer {
         margin-top: var(--space-xl);
         padding-top: var(--space-lg);
         border-top: 1px solid var(--light-gray);
-    }
-
-    /* ===== NEW: OLD REPORTS + NOTIFICATIONS ===== */
-    .reports-wrapper {
-        margin-top: var(--space-xl);
-        text-align: left;
-    }
-
-    .reports-actions {
-        display: flex;
-        justify-content: center;
-        margin: var(--space-md) 0 var(--space-lg) 0;
-    }
-
-    .reports-section {
-        margin-bottom: var(--space-lg);
-    }
-
-    .reports-table th,
-    .reports-table td {
-        font-size: 0.9rem;
-    }
-
-    .reports-view-btn {
-        padding: var(--space-sm) var(--space-md);
-        font-size: 0.85rem;
-    }
-
-    .no-reports-note {
-        color: var(--medium-gray);
-        margin-top: var(--space-md);
-    }
-
-    .notifications-section {
-        margin-top: var(--space-lg);
-        background: linear-gradient(135deg, #e8f4f8 0%, #d5edf7 100%);
-        padding: var(--space-lg);
-        border-radius: var(--radius-lg);
-        border-left: 4px solid var(--primary-blue);
-    }
-
-    .notifications-title {
-        margin-bottom: var(--space-md);
-        color: var(--primary-dark);
-    }
-
-    .notifications-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
-    .notification-item {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-sm);
-        padding: var(--space-sm) 0;
-        border-bottom: 1px solid var(--light-gray);
-        font-size: 0.9rem;
-    }
-
-    .notification-item:last-child {
-        border-bottom: none;
-    }
-
-    .notification-date {
-        font-weight: 600;
-        color: var(--primary-dark);
-        min-width: 110px;
-    }
-
-    .notification-text {
-        color: var(--dark-gray);
     }
 
     @media (max-width: 768px) {
@@ -378,8 +321,10 @@
             font-size: 3rem;
         }
 
-        .notifications-section {
-            padding: var(--space-md);
+        .reports-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: var(--space-sm);
         }
     }
 </style>
