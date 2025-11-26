@@ -243,7 +243,7 @@ def save_report_to_db(farmer, crop, averages, calculated,
 def load_report_context(report_id):
     """
     Load a report from DB and return context dict like the session-based one.
-    If not found / DB off, returns None.
+    If not found / DB off / JSON error, returns None.
     """
     if SessionLocal is None or report_id is None:
         return None
@@ -254,15 +254,39 @@ def load_report_context(report_id):
         if not rep:
             return None
 
-        farmer = json.loads(rep.farmer_json) if rep.farmer_json else {}
-        crop = json.loads(rep.crop_json) if rep.crop_json else {}
-        averages = json.loads(rep.averages_json) if rep.averages_json else {}
-        calculated = json.loads(rep.calculated_json) if rep.calculated_json else {}
-        fert_schedule = json.loads(rep.fert_schedule_json) if rep.fert_schedule_json else []
-        irrigation_schedule = (
-            json.loads(rep.irrigation_schedule_json)
-            if rep.irrigation_schedule_json else []
-        )
+        try:
+            farmer = json.loads(rep.farmer_json) if rep.farmer_json else {}
+        except Exception as e:
+            print("Error decoding farmer_json:", e)
+            farmer = {}
+        try:
+            crop = json.loads(rep.crop_json) if rep.crop_json else {}
+        except Exception as e:
+            print("Error decoding crop_json:", e)
+            crop = {}
+        try:
+            averages = json.loads(rep.averages_json) if rep.averages_json else {}
+        except Exception as e:
+            print("Error decoding averages_json:", e)
+            averages = {}
+        try:
+            calculated = json.loads(rep.calculated_json) if rep.calculated_json else {}
+        except Exception as e:
+            print("Error decoding calculated_json:", e)
+            calculated = {}
+        try:
+            fert_schedule = json.loads(rep.fert_schedule_json) if rep.fert_schedule_json else []
+        except Exception as e:
+            print("Error decoding fert_schedule_json:", e)
+            fert_schedule = []
+        try:
+            irrigation_schedule = (
+                json.loads(rep.irrigation_schedule_json)
+                if rep.irrigation_schedule_json else []
+            )
+        except Exception as e:
+            print("Error decoding irrigation_schedule_json:", e)
+            irrigation_schedule = []
 
         ctx = {
             "farmer": farmer,
@@ -276,6 +300,12 @@ def load_report_context(report_id):
             "now": rep.created_at or datetime.utcnow(),
         }
         return ctx
+    except SQLAlchemyError as e:
+        print("Error loading report from DB:", e)
+        return None
+    except Exception as e:
+        print("Unexpected error in load_report_context:", e)
+        return None
     finally:
         db.close()
 
