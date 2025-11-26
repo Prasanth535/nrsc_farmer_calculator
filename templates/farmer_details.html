@@ -35,7 +35,7 @@
                 <span class="label-text">Full Name</span>
                 <div class="input-with-mic">
                     <input type="text" id="name" name="name" value="{{ farmer.get('name', '') }}" 
-                           placeholder="Enter your full name" required
+                           placeholder="Enter your full name"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('name')" 
                             title="Voice Input">
@@ -50,7 +50,7 @@
                 <div class="input-with-mic">
                     <input type="tel" id="mobile" name="mobile" value="{{ farmer.get('mobile', '') }}" 
                            placeholder="Enter 10-digit mobile number" 
-                           pattern="[0-9]{10}" required
+                           pattern="[0-9]{10}"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('mobile')"
                             title="Voice Input">
@@ -68,7 +68,7 @@
                 <span class="label-text">Village Name</span>
                 <div class="input-with-mic">
                     <input type="text" id="village" name="village" value="{{ farmer.get('village', '') }}" 
-                           placeholder="Enter your village name" required
+                           placeholder="Enter your village name"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('village')"
                             title="Voice Input">
@@ -81,7 +81,7 @@
                 <span class="label-text">Mandal Name</span>
                 <div class="input-with-mic">
                     <input type="text" id="mandal" name="mandal" value="{{ farmer.get('mandal', '') }}" 
-                           placeholder="Enter your mandal name" required
+                           placeholder="Enter your mandal name"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('mandal')"
                             title="Voice Input">
@@ -94,7 +94,7 @@
                 <span class="label-text">District Name</span>
                 <div class="input-with-mic">
                     <input type="text" id="district" name="district" value="{{ farmer.get('district', '') }}" 
-                           placeholder="Enter your district name" required
+                           placeholder="Enter your district name"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('district')"
                             title="Voice Input">
@@ -390,7 +390,7 @@
         }, 5000);
     }
 
-    // Form validation
+    // Form validation (mobile can be empty; only validate if filled)
     document.getElementById('farmerForm').addEventListener('submit', function(e) {
         const mobile = document.getElementById('mobile').value;
         if (mobile && !/^\d{10}$/.test(mobile)) {
