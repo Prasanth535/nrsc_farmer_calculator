@@ -11,6 +11,7 @@ from flask import (
 from datetime import datetime, timedelta
 import io
 import os
+import json
 
 from docx import Document
 
@@ -72,6 +73,7 @@ class FieldSession(Base):
     """
     One record per calculation/session.
     Stores GPS, address, land area and some context.
+    (Still used only for export_csv – unchanged behaviour.)
     """
     __tablename__ = "field_sessions"
 
@@ -95,7 +97,7 @@ class FieldSession(Base):
 
 class SensorReading(Base):
     """
-    One row per sensor reading (1 to 10) for a given FieldSession.
+    One row per sensor reading for a given FieldSession.
     """
     __tablename__ = "sensor_readings"
 
@@ -117,21 +119,47 @@ class SensorReading(Base):
     session = relationship("FieldSession", back_populates="readings")
 
 
+class Report(Base):
+    """
+    Saved report snapshot so that it can be opened again later.
+    Stores farmer/crop data + all derived schedules as JSON.
+    """
+    __tablename__ = "reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    farmer_name = Column(String(200))
+    crop_name = Column(String(100))
+    variety_name = Column(String(100))
+    sowing_date = Column(String(20))
+    land_area_ha = Column(Float)
+
+    farmer_json = Column(String)              # dict
+    crop_json = Column(String)                # dict
+    averages_json = Column(String)            # dict
+    calculated_json = Column(String)          # dict
+    fert_schedule_json = Column(String)       # list
+    irrigation_schedule_json = Column(String) # list
+
+
 if engine is not None:
     try:
         Base.metadata.create_all(bind=engine)
-        print("Database tables ensured (field_sessions, sensor_readings).")
+        print("Database tables ensured (field_sessions, sensor_readings, reports).")
     except Exception as e:
         print("Error creating tables:", e)
 
 
+# ================== DB HELPERS ==================
+
 def save_session_to_db(crop, farmer, readings_list):
     """
-    Save GPS, full address, land area and all sensor readings (up to 10)
-    into Neon via SQLAlchemy.
+    Old behaviour: save GPS, full address, land area and all sensor readings
+    into Neon via SQLAlchemy for CSV export.
     """
     if SessionLocal is None:
-        print("Database not configured; skipping DB save.")
+        print("Database not configured; skipping FieldSession save.")
         return
 
     db = SessionLocal()
@@ -167,10 +195,106 @@ def save_session_to_db(crop, farmer, readings_list):
             db.add(sr)
 
         db.commit()
-        print(f"Saved session {fs.id} with {len(readings_list)} readings to DB.")
+        print(f"Saved FieldSession {fs.id} with {len(readings_list)} readings to DB.")
     except SQLAlchemyError as e:
         db.rollback()
-        print("Error saving to DB:", e)
+        print("Error saving FieldSession to DB:", e)
+    finally:
+        db.close()
+
+
+def save_report_to_db(farmer, crop, averages, calculated,
+                      fert_schedule, irrigation_schedule):
+    """
+    Save a full report snapshot. Returns report_id or None.
+    """
+    if SessionLocal is None:
+        print("Database not configured; skipping Report save.")
+        return None
+
+    db = SessionLocal()
+    try:
+        land_area = float(crop.get("land_area", 1.0) or 1.0)
+        rep = Report(
+            farmer_name=farmer.get("name", ""),
+            crop_name=crop.get("crop", ""),
+            variety_name=crop.get("variety", ""),
+            sowing_date=crop.get("sowing_date", ""),
+            land_area_ha=land_area,
+            farmer_json=json.dumps(farmer, default=str),
+            crop_json=json.dumps(crop, default=str),
+            averages_json=json.dumps(averages, default=str),
+            calculated_json=json.dumps(calculated, default=str),
+            fert_schedule_json=json.dumps(fert_schedule, default=str),
+            irrigation_schedule_json=json.dumps(irrigation_schedule, default=str),
+        )
+        db.add(rep)
+        db.commit()
+        print(f"Saved Report {rep.id} to DB.")
+        return rep.id
+    except SQLAlchemyError as e:
+        db.rollback()
+        print("Error saving Report to DB:", e)
+        return None
+    finally:
+        db.close()
+
+
+def load_report_context(report_id):
+    """
+    Load a report from DB and return context dict like the session-based one.
+    If not found / DB off, returns None.
+    """
+    if SessionLocal is None or report_id is None:
+        return None
+
+    db = SessionLocal()
+    try:
+        rep = db.query(Report).filter(Report.id == report_id).first()
+        if not rep:
+            return None
+
+        farmer = json.loads(rep.farmer_json) if rep.farmer_json else {}
+        crop = json.loads(rep.crop_json) if rep.crop_json else {}
+        averages = json.loads(rep.averages_json) if rep.averages_json else {}
+        calculated = json.loads(rep.calculated_json) if rep.calculated_json else {}
+        fert_schedule = json.loads(rep.fert_schedule_json) if rep.fert_schedule_json else []
+        irrigation_schedule = (
+            json.loads(rep.irrigation_schedule_json)
+            if rep.irrigation_schedule_json else []
+        )
+
+        ctx = {
+            "farmer": farmer,
+            "crop": crop,
+            "averages": averages,
+            "calculated": calculated,
+            "fert_schedule": fert_schedule,
+            "irrigation_schedule": irrigation_schedule,
+            "report_id": rep.id,
+            "report_created_at": rep.created_at,
+            "now": rep.created_at or datetime.utcnow(),
+        }
+        return ctx
+    finally:
+        db.close()
+
+
+def get_index_reports(limit=5):
+    """
+    Fetch recent reports for home page.
+    """
+    if SessionLocal is None:
+        return []
+
+    db = SessionLocal()
+    try:
+        return (
+            db.query(Report)
+            .order_by(Report.created_at.desc())
+            .limit(limit)
+            .all()
+        )
     finally:
         db.close()
 
@@ -528,6 +652,37 @@ def generate_fertilizer_schedule(crop_name, sowing_date_str, n_total, p_total, k
         )
     return schedule
 
+
+def build_report_context(report_id=None):
+    """
+    Unified helper to get context for report.html either from DB (if report_id)
+    or from current session as fallback.
+    """
+    ctx = load_report_context(report_id)
+    if ctx is not None:
+        return ctx
+
+    # Fallback to session-based context (old behaviour)
+    farmer = session.get("farmer", {})
+    crop = session.get("crop", {})
+    averages = session.get("averages", {})
+    calculated = session.get("calculated", {})
+    irrigation_schedule = session.get("irrigation_schedule", [])
+    fert_schedule = session.get("fert_schedule", [])
+
+    return {
+        "farmer": farmer,
+        "crop": crop,
+        "averages": averages,
+        "calculated": calculated,
+        "irrigation_schedule": irrigation_schedule,
+        "fert_schedule": fert_schedule,
+        "report_id": report_id,
+        "report_created_at": datetime.utcnow(),
+        "now": datetime.utcnow(),
+    }
+
+
 # ================== ROUTES ==================
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -535,12 +690,15 @@ def index():
         lang = request.form.get("language", "en")
         session["language"] = lang
         return redirect(url_for("farmer_details"))
-    return render_template("index.html")
+
+    recent_reports = get_index_reports(limit=5)
+    return render_template("index.html", reports=recent_reports)
 
 
 @app.route("/farmer-details", methods=["GET", "POST"])
 def farmer_details():
     if request.method == "POST":
+        # NOTE: now optional – user can leave these blank and still proceed
         farmer = {
             "name": request.form.get("name", "").strip(),
             "mobile": request.form.get("mobile", "").strip(),
@@ -625,6 +783,7 @@ def crop_details():
         session["stcr_rec"] = {"N": rec_n, "P2O5": rec_p, "K2O": rec_k}
         session["readings"] = []
         session["saved_to_db"] = False
+        session["last_report_id"] = None
 
         return redirect(url_for("readings"))
 
@@ -670,15 +829,14 @@ def crop_info_api():
 @app.route("/readings", methods=["GET"])
 def readings():
     readings_list = session.get("readings", [])
-    reading_no = len(readings_list) + 1
-    if reading_no > 10:
-        reading_no = 10
+    reading_no = len(readings_list) + 1   # no hard cap; just label
+    max_readings = 10                     # used only for progress bar
 
     return render_template(
         "readings.html",
         readings=readings_list,
         reading_no=reading_no,
-        max_readings=10,
+        max_readings=max_readings,
     )
 
 # ---------- AJAX API: save one reading ----------
@@ -710,6 +868,7 @@ def api_save_reading():
     readings_list.append(reading)
     session["readings"] = readings_list
 
+    # done == True once we have at least 10 readings; but user can keep adding
     done = len(readings_list) >= 10
     return jsonify({"ok": True, "count": len(readings_list), "done": done})
 
@@ -718,12 +877,17 @@ def api_save_reading():
 def api_reset_readings():
     session["readings"] = []
     session["saved_to_db"] = False
+    session["last_report_id"] = None
     return jsonify({"ok": True})
 
 # ---------- Calculate & Report ----------
 @app.route("/calculate")
 def calculate():
     readings_list = session.get("readings", [])
+    if not readings_list:
+        # No readings – just go back safely
+        return redirect(url_for("readings"))
+
     averages = compute_averages(readings_list)
     session["averages"] = averages
 
@@ -733,7 +897,7 @@ def calculate():
     soil_type = crop.get("soil_type")
     land_area = float(crop.get("land_area", 1.0) or 1.0)
 
-    # Save one record per calculation to the database (only once per session)
+    # Save one record per calculation to the database (FieldSession)
     if readings_list and not session.get("saved_to_db"):
         save_session_to_db(crop, farmer, readings_list)
         session["saved_to_db"] = True
@@ -836,29 +1000,88 @@ def calculate():
     )
     session["fert_schedule"] = fert_schedule
 
-    return redirect(url_for("report"))
+    # Save full report snapshot
+    report_id = save_report_to_db(
+        farmer, crop, averages, calculated, fert_schedule, irrigation_schedule
+    )
+    session["last_report_id"] = report_id
+
+    if report_id:
+        return redirect(url_for("report_view", report_id=report_id))
+    else:
+        # fallback to session-based report
+        return redirect(url_for("report_no_id"))
 
 
 @app.route("/report")
-def report():
-    farmer = session.get("farmer", {})
-    crop = session.get("crop", {})
-    readings_list = session.get("readings", [])
-    averages = session.get("averages", {})
-    calculated = session.get("calculated", {})
-    irrigation_schedule = session.get("irrigation_schedule", [])
-    fert_schedule = session.get("fert_schedule", [])
+def report_no_id():
+    ctx = build_report_context(session.get("last_report_id"))
+    return render_template("report.html", **ctx)
 
-    return render_template(
-        "report.html",
-        farmer=farmer,
-        crop=crop,
-        readings=readings_list,
-        averages=averages,
-        calculated=calculated,
-        irrigation_schedule=irrigation_schedule,
-        fert_schedule=fert_schedule,
-    )
+
+@app.route("/report/<int:report_id>")
+def report_view(report_id):
+    ctx = build_report_context(report_id)
+    return render_template("report.html", **ctx)
+
+
+@app.route("/update-sowing-date/<int:report_id>", methods=["POST"])
+def update_sowing_date(report_id):
+    """
+    Update sowing date for a saved report, and regenerate schedules.
+    """
+    if SessionLocal is None:
+        # No DB – just ignore gracefully
+        return redirect(url_for("report_view", report_id=report_id))
+
+    new_date = request.form.get("sowing_date", "").strip()
+    if not new_date:
+        return redirect(url_for("report_view", report_id=report_id))
+
+    db = SessionLocal()
+    try:
+        rep = db.query(Report).filter(Report.id == report_id).first()
+        if not rep:
+            return redirect(url_for("report_view", report_id=report_id))
+
+        crop = json.loads(rep.crop_json) if rep.crop_json else {}
+        calculated = json.loads(rep.calculated_json) if rep.calculated_json else {}
+
+        crop["sowing_date"] = new_date
+        duration = crop.get("duration", 0) or 0
+
+        final_n = float(calculated.get("final_n", 0.0))
+        final_p = float(calculated.get("final_p", 0.0))
+        final_k = float(calculated.get("final_k", 0.0))
+
+        fert_schedule = generate_fertilizer_schedule(
+            rep.crop_name,
+            new_date,
+            final_n,
+            final_p,
+            final_k,
+            rep.land_area_ha or 1.0,
+        )
+        irrigation_schedule = generate_irrigation_schedule(
+            new_date,
+            duration,
+            rep.crop_name,
+            rep.land_area_ha or 1.0,
+        )
+
+        rep.sowing_date = new_date
+        rep.crop_json = json.dumps(crop, default=str)
+        rep.fert_schedule_json = json.dumps(fert_schedule, default=str)
+        rep.irrigation_schedule_json = json.dumps(irrigation_schedule, default=str)
+
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        print("Error updating sowing date:", e)
+    finally:
+        db.close()
+
+    return redirect(url_for("report_view", report_id=report_id))
 
 
 @app.route("/export/csv")
@@ -924,12 +1147,15 @@ def export_csv():
 # ---------- Download as PDF ----------
 @app.route("/download/pdf")
 def download_pdf():
-    farmer = session.get("farmer", {})
-    crop = session.get("crop", {})
-    averages = session.get("averages", {})
-    calculated = session.get("calculated", {})
-    irrigation_schedule = session.get("irrigation_schedule", [])
-    fert_schedule = session.get("fert_schedule", [])
+    report_id = request.args.get("report_id", type=int)
+    ctx = build_report_context(report_id)
+
+    farmer = ctx["farmer"]
+    crop = ctx["crop"]
+    averages = ctx["averages"]
+    calculated = ctx["calculated"]
+    irrigation_schedule = ctx["irrigation_schedule"]
+    fert_schedule = ctx["fert_schedule"]
 
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -1096,7 +1322,6 @@ def download_pdf():
         elements.append(t)
         elements.append(Spacer(1, 8))
 
-        # brief text about fertilizer forms by stage
         elements.append(Paragraph(
             "Equivalent fertilizer quantities (for your field) at each stage "
             "are provided in the HTML report for detailed reference.",
@@ -1144,12 +1369,15 @@ def download_pdf():
 # ---------- Download as Word ----------
 @app.route("/download/word")
 def download_word():
-    farmer = session.get("farmer", {})
-    crop = session.get("crop", {})
-    averages = session.get("averages", {})
-    calculated = session.get("calculated", {})
-    irrigation_schedule = session.get("irrigation_schedule", [])
-    fert_schedule = session.get("fert_schedule", [])
+    report_id = request.args.get("report_id", type=int)
+    ctx = build_report_context(report_id)
+
+    farmer = ctx["farmer"]
+    crop = ctx["crop"]
+    averages = ctx["averages"]
+    calculated = ctx["calculated"]
+    irrigation_schedule = ctx["irrigation_schedule"]
+    fert_schedule = ctx["fert_schedule"]
 
     doc = Document()
     doc.add_heading("NRSC Farmer Advisor - Soil & Crop Report", level=1)
@@ -1276,4 +1504,4 @@ def download_word():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=True)
