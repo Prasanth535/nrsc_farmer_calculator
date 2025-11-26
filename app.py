@@ -41,32 +41,38 @@ app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
 
 # ================== DATABASE (Neon PostgreSQL via SQLAlchemy) ==================
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+# Try to use Neon (DATABASE_URL). If not set, fall back to local SQLite file.
+raw_db_url = os.environ.get("DATABASE_URL", "").strip()
+if not raw_db_url:
+    # Local dev fallback – this will create nrsc_farm.db in your project folder
+    raw_db_url = "sqlite:///nrsc_farm.db"
+    print("DATABASE_URL not set. Using local SQLite DB:", raw_db_url)
+else:
+    print("Using DATABASE_URL from environment.")
 
 engine = None
 SessionLocal = None
 Base = declarative_base()
 
-if DATABASE_URL:
-    try:
-        # Normalize URL for SQLAlchemy / psycopg2
-        if DATABASE_URL.startswith("postgres://"):
-            DATABASE_URL = DATABASE_URL.replace(
-                "postgres://", "postgresql+psycopg2://", 1
-            )
-        elif DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_URL:
-            DATABASE_URL = DATABASE_URL.replace(
-                "postgresql://", "postgresql+psycopg2://", 1
-            )
+try:
+    DATABASE_URL = raw_db_url
+    # Normalize URL only for Postgres connections
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgres://", "postgresql+psycopg2://", 1
+        )
+    elif DATABASE_URL.startswith("postgresql://") and "+psycopg2" not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace(
+            "postgresql://", "postgresql+psycopg2://", 1
+        )
 
-        engine = create_engine(DATABASE_URL, pool_pre_ping=True)
-        SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    except Exception as e:
-        print("Error creating database engine:", e)
-        engine = None
-        SessionLocal = None
-else:
-    print("DATABASE_URL not set; database features are disabled.")
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    print("SQLAlchemy engine created successfully.")
+except Exception as e:
+    print("Error creating database engine:", e)
+    engine = None
+    SessionLocal = None
 
 
 class FieldSession(Base):
