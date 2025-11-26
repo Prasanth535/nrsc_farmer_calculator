@@ -7,10 +7,22 @@
         <h1 class="report-title">NRSC Farmer Advisor - Soil Analysis Report</h1>
         <div class="report-meta">
             <div class="meta-item">
-                <strong>Generated:</strong> {{ now.strftime('%Y-%m-%d %H:%M') if now else '' }}
+                <strong>Generated:</strong>
+                {% if report_created_at %}
+                    {{ report_created_at.strftime('%Y-%m-%d %H:%M') }}
+                {% elif now %}
+                    {{ now.strftime('%Y-%m-%d %H:%M') }}
+                {% else %}
+                    -
+                {% endif %}
             </div>
             <div class="meta-item">
-                <strong>Report ID:</strong> FA-{{ "%06d" | format(range(1, 1000000) | random) }}
+                <strong>Report ID:</strong>
+                {% if report_id %}
+                    FA-{{ "%06d" | format(report_id) }}
+                {% else %}
+                    FA-SESSION
+                {% endif %}
             </div>
         </div>
     </div>
@@ -97,9 +109,31 @@
             <div class="detail-item">
                 <strong>Land Area:</strong> {{ "%.2f"|format(crop.land_area or 0) }} ha
             </div>
+
+            <!-- Editable sowing date -->
             <div class="detail-item">
-                <strong>Sowing Date:</strong> {{ crop.sowing_date }}
+                <strong>Sowing Date:</strong>
+                {% if report_id %}
+                <form method="post"
+                      action="{{ url_for('update_sowing_date', report_id=report_id) }}"
+                      class="sowing-form">
+                    <input type="date"
+                           name="sowing_date"
+                           value="{{ crop.sowing_date }}"
+                           class="form-input sowing-input">
+                    <button type="submit" class="secondary-btn sowing-btn">
+                        <span class="btn-icon">🔄</span>
+                        Update & Reschedule
+                    </button>
+                </form>
+                <small class="sowing-hint">
+                    Changing sowing date will automatically update fertilizer and irrigation dates.
+                </small>
+                {% else %}
+                    {{ crop.sowing_date }}
+                {% endif %}
             </div>
+
             {% if crop.target_yield_q is not none %}
             <div class="detail-item">
                 <strong>Target Yield:</strong> {{ crop.target_yield_q }} q/ha
@@ -377,11 +411,23 @@
         </div>
 
         <div class="download-actions">
-            <a href="{{ url_for('download_pdf') }}" class="primary-btn btn-large">
+            <a
+                {% if report_id %}
+                    href="{{ url_for('download_pdf') }}?report_id={{ report_id }}"
+                {% else %}
+                    href="{{ url_for('download_pdf') }}"
+                {% endif %}
+                class="primary-btn btn-large">
                 <span class="btn-icon">📄</span>
                 Download PDF Report
             </a>
-            <a href="{{ url_for('download_word') }}" class="secondary-btn">
+            <a
+                {% if report_id %}
+                    href="{{ url_for('download_word') }}?report_id={{ report_id }}"
+                {% else %}
+                    href="{{ url_for('download_word') }}"
+                {% endif %}
+                class="secondary-btn">
                 <span class="btn-icon">📝</span>
                 Download Word Report
             </a>
@@ -709,6 +755,31 @@
         gap: var(--space-md);
         justify-content: center;
         flex-wrap: wrap;
+    }
+
+    /* Sowing date edit form */
+    .sowing-form {
+        margin-top: var(--space-sm);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-sm);
+        align-items: center;
+    }
+
+    .sowing-input {
+        max-width: 200px;
+    }
+
+    .sowing-btn {
+        padding: var(--space-sm) var(--space-md);
+        font-size: 0.85rem;
+    }
+
+    .sowing-hint {
+        display: block;
+        margin-top: var(--space-xs);
+        font-size: 0.8rem;
+        color: var(--medium-gray);
     }
 
     @keyframes fadeIn {
