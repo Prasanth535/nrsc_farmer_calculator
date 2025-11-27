@@ -3,11 +3,11 @@
 <div class="card">
     <!-- Report Header -->
     <div class="report-header">
-        <div class="report-badge">OFFICIAL REPORT</div>
-        <h1 class="report-title">NRSC Farmer Advisor - Soil Analysis Report</h1>
+        <div class="report-badge">{{ t['badge_official'] }}</div>
+        <h1 class="report-title">{{ t['header_title'] }} - {{ t['title_report'] }}</h1>
         <div class="report-meta">
             <div class="meta-item">
-                <strong>Generated:</strong>
+                <strong>{{ t['lbl_generated'] }}:</strong>
                 {% if report_created_at %}
                     {{ report_created_at.strftime('%Y-%m-%d %H:%M') }}
                 {% elif now %}
@@ -17,7 +17,7 @@
                 {% endif %}
             </div>
             <div class="meta-item">
-                <strong>Report ID:</strong>
+                <strong>{{ t['lbl_report_id'] }}:</strong>
                 {% if report_id %}
                     FA-{{ "%06d" | format(report_id) }}
                 {% else %}
@@ -29,7 +29,7 @@
 
     <!-- Executive Summary -->
     <div class="executive-summary">
-        <h2>📊 Executive Summary</h2>
+        <h2>📊 {{ t['title_exec_summary'] }}</h2>
         <div class="summary-grid">
             <div class="summary-card primary">
                 <div class="summary-icon">🌾</div>
@@ -42,21 +42,21 @@
                 <div class="summary-icon">📈</div>
                 <div class="summary-content">
                     <h3>{{ calculated.recommended_npk_after }}</h3>
-                    <p>Recommended NPK</p>
+                    <p>{{ t['lbl_rec_npk_short'] }}</p>
                 </div>
             </div>
             <div class="summary-card warning">
                 <div class="summary-icon">📍</div>
                 <div class="summary-content">
                     <h3>{{ "%.2f"|format(crop.land_area or 0) }} ha</h3>
-                    <p>Land Area</p>
+                    <p>{{ t['lbl_land_area_short'] }}</p>
                 </div>
             </div>
             <div class="summary-card info">
                 <div class="summary-icon">📅</div>
                 <div class="summary-content">
                     <h3>{{ fert_schedule|length }}</h3>
-                    <p>Fertilizer Applications</p>
+                    <p>{{ t['lbl_fert_apps'] }}</p>
                 </div>
             </div>
         </div>
@@ -64,70 +64,70 @@
 
     <!-- Farmer Details -->
     <section class="report-section">
-        <h2>👨‍🌾 Farmer Details</h2>
+        <h2>👨‍🌾 {{ t['title_farmer_det'] }}</h2>
         <div class="detail-grid">
             <div class="detail-item">
-                <strong>Name:</strong> {{ farmer.name }}
+                <strong>{{ t['lbl_name'] }}:</strong> {{ farmer.name }}
             </div>
             <div class="detail-item">
-                <strong>Mobile:</strong> {{ farmer.mobile }}
+                <strong>{{ t['lbl_mobile'] }}:</strong> {{ farmer.mobile }}
             </div>
             <div class="detail-item">
-                <strong>Village:</strong> {{ farmer.village }}
+                <strong>{{ t['lbl_village_rep'] }}:</strong> {{ farmer.village }}
             </div>
             <div class="detail-item">
-                <strong>Mandal:</strong> {{ farmer.mandal }}
+                <strong>{{ t['lbl_mandal_rep'] }}:</strong> {{ farmer.mandal }}
             </div>
             <div class="detail-item">
-                <strong>District:</strong> {{ farmer.district }}
+                <strong>{{ t['lbl_district_rep'] }}:</strong> {{ farmer.district }}
             </div>
         </div>
     </section>
 
     <!-- Crop & Soil Details -->
     <section class="report-section">
-        <h2>🌱 Crop & Soil Information</h2>
+        <h2>🌱 {{ t['title_crop_soil_rep'] }}</h2>
         <div class="detail-grid two-columns">
             <div class="detail-item">
-                <strong>GPS Location:</strong> {{ crop.gps_location }}
+                <strong>{{ t['lbl_gps_rep'] }}:</strong> {{ crop.gps_location }}
             </div>
             <div class="detail-item">
-                <strong>Soil Type:</strong> {{ crop.soil_type }}
+                <strong>{{ t['lbl_soil_type'] }}:</strong> {{ crop.soil_type }}
             </div>
             <div class="detail-item">
-                <strong>Crop:</strong> {{ crop.crop }}
+                <strong>{{ t['lbl_crop_type'] }}:</strong> {{ crop.crop }}
             </div>
             <div class="detail-item">
-                <strong>Variety:</strong> {{ crop.variety }}
+                <strong>{{ t['lbl_variety'] }}:</strong> {{ crop.variety }}
             </div>
             <div class="detail-item">
-                <strong>Season:</strong> {{ crop.season }}
+                <strong>{{ t['lbl_season'] }}:</strong> {{ crop.season }}
             </div>
             <div class="detail-item">
-                <strong>Duration:</strong> {{ crop.duration }} days
+                <strong>{{ t['lbl_duration'] }}:</strong> {{ crop.duration }}
             </div>
             <div class="detail-item">
-                <strong>Land Area:</strong> {{ "%.2f"|format(crop.land_area or 0) }} ha
+                <strong>{{ t['lbl_land_area'] }}:</strong> {{ "%.2f"|format(crop.land_area or 0) }} ha
             </div>
 
             <!-- Editable sowing date -->
             <div class="detail-item">
-                <strong>Sowing Date:</strong>
+                <strong>{{ t['lbl_sowing_date'] }}:</strong>
                 {% if report_id %}
-                <form method="post"
-                      action="{{ url_for('update_sowing_date', report_id=report_id) }}"
+                <form method="post" 
+                      action="{{ url_for('update_sowing_date', report_id=report_id) }}" 
                       class="sowing-form">
-                    <input type="date"
-                           name="sowing_date"
-                           value="{{ crop.sowing_date }}"
+                    <input type="date" 
+                           name="sowing_date" 
+                           value="{{ crop.sowing_date }}" 
                            class="form-input sowing-input">
                     <button type="submit" class="secondary-btn sowing-btn">
                         <span class="btn-icon">🔄</span>
-                        Update & Reschedule
+                        {{ t['btn_update_schedule'] }}
                     </button>
                 </form>
                 <small class="sowing-hint">
-                    Changing sowing date will automatically update fertilizer and irrigation dates.
+                    {{ t['hint_update_sowing'] }}
                 </small>
                 {% else %}
                     {{ crop.sowing_date }}
@@ -136,7 +136,7 @@
 
             {% if crop.target_yield_q is not none %}
             <div class="detail-item">
-                <strong>Target Yield:</strong> {{ crop.target_yield_q }} q/ha
+                <strong>{{ t['lbl_target_yield'] }}:</strong> {{ crop.target_yield_q }} q/ha
             </div>
             {% endif %}
         </div>
@@ -144,10 +144,10 @@
 
     <!-- Soil Analysis Results -->
     <section class="report-section">
-        <h2>🔬 Soil Analysis Results</h2>
+        <h2>🔬 {{ t['title_soil_results'] }}</h2>
         <div class="analysis-grid">
             <div class="analysis-card">
-                <h4>Primary Nutrients</h4>
+                <h4>{{ t['sub_primary_nutrients'] }}</h4>
                 <div class="analysis-value {{ 'optimal' if averages.get('soil_n', 0) > 50 else 'low' }}">
                     N: {{ "%.2f"|format(averages.get("soil_n", 0)) }} kg/ha
                 </div>
@@ -160,7 +160,7 @@
             </div>
             
             <div class="analysis-card">
-                <h4>Soil Properties</h4>
+                <h4>{{ t['sub_soil_props'] }}</h4>
                 <div class="analysis-value {{ 'optimal' if 6.5 <= averages.get('ph', 0) <= 7.5 else 'low' }}">
                     pH: {{ "%.2f"|format(averages.get("ph", 0)) }}
                 </div>
@@ -173,7 +173,7 @@
             </div>
             
             <div class="analysis-card">
-                <h4>Environmental</h4>
+                <h4>{{ t['sub_env_props'] }}</h4>
                 <div class="analysis-value">
                     Soil Temp: {{ "%.2f"|format(averages.get("soil_temp", 0)) }}°C
                 </div>
@@ -189,23 +189,23 @@
 
     <!-- Fertilizer Recommendations -->
     <section class="report-section">
-        <h2>💡 Fertilizer Recommendations</h2>
+        <h2>💡 {{ t['title_fert_rec'] }}</h2>
         
         <div class="recommendation-header">
-            <h3>Final N:P:K Recommendation: {{ calculated.recommended_npk_after }} kg/ha</h3>
-            <p class="recommendation-note">Based on STCR analysis and soil test results</p>
+            <h3>{{ t['lbl_rec_npk_short'] }}: {{ calculated.recommended_npk_after }} kg/ha</h3>
+            <p class="recommendation-note">{{ t['note_fert_rec'] }}</p>
         </div>
 
         <div class="fertilizer-options">
             <div class="option-card">
-                <h4>Option 1: Urea + DAP + MoP</h4>
+                <h4>{{ t['opt_1_urea_dap'] }}</h4>
                 <div class="option-table">
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th>Fertilizer</th>
-                                <th>Per Hectare</th>
-                                <th>For Your Field</th>
+                                <th>{{ t['th_fertilizer'] }}</th>
+                                <th>{{ t['th_per_ha'] }}</th>
+                                <th>{{ t['th_for_field'] }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -230,14 +230,14 @@
             </div>
 
             <div class="option-card">
-                <h4>Option 2: Urea + SSP + MoP</h4>
+                <h4>{{ t['opt_2_urea_ssp'] }}</h4>
                 <div class="option-table">
                     <table class="report-table">
                         <thead>
                             <tr>
-                                <th>Fertilizer</th>
-                                <th>Per Hectare</th>
-                                <th>For Your Field</th>
+                                <th>{{ t['th_fertilizer'] }}</th>
+                                <th>{{ t['th_per_ha'] }}</th>
+                                <th>{{ t['th_for_field'] }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -266,21 +266,21 @@
     <!-- Fertilizer Schedule -->
     {% if fert_schedule %}
     <section class="report-section">
-        <h2>📅 Fertilizer Application Schedule</h2>
+        <h2>📅 {{ t['title_fert_sched'] }}</h2>
         
         <div class="schedule-tabs">
-            <button class="tab-button active" onclick="openTab('nutrientTab')">Nutrient Schedule</button>
-            <button class="tab-button" onclick="openTab('ureaDapTab')">Urea + DAP + MoP</button>
-            <button class="tab-button" onclick="openTab('ureaSspTab')">Urea + SSP + MoP</button>
+            <button class="tab-button active" onclick="openTab('nutrientTab')">{{ t['tab_nutrient'] }}</button>
+            <button class="tab-button" onclick="openTab('ureaDapTab')">{{ t['opt_1_urea_dap'] }}</button>
+            <button class="tab-button" onclick="openTab('ureaSspTab')">{{ t['opt_2_urea_ssp'] }}</button>
         </div>
 
         <div id="nutrientTab" class="tab-content active">
             <table class="report-table">
                 <thead>
                     <tr>
-                        <th>Stage</th>
-                        <th>DAS</th>
-                        <th>Date</th>
+                        <th>{{ t['th_stage'] }}</th>
+                        <th>{{ t['th_das'] }}</th>
+                        <th>{{ t['th_date'] }}</th>
                         <th>N (kg/ha)</th>
                         <th>P₂O₅ (kg/ha)</th>
                         <th>K₂O (kg/ha)</th>
@@ -305,12 +305,12 @@
             <table class="report-table">
                 <thead>
                     <tr>
-                        <th>Stage</th>
-                        <th>Date</th>
+                        <th>{{ t['th_stage'] }}</th>
+                        <th>{{ t['th_date'] }}</th>
                         <th>Urea (kg)</th>
                         <th>DAP (kg)</th>
                         <th>MoP (kg)</th>
-                        <th>Total (kg)</th>
+                        <th>{{ t['th_total_kg'] }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -332,12 +332,12 @@
             <table class="report-table">
                 <thead>
                     <tr>
-                        <th>Stage</th>
-                        <th>Date</th>
+                        <th>{{ t['th_stage'] }}</th>
+                        <th>{{ t['th_date'] }}</th>
                         <th>Urea (kg)</th>
                         <th>SSP (kg)</th>
                         <th>MoP (kg)</th>
-                        <th>Total (kg)</th>
+                        <th>{{ t['th_total_kg'] }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -360,27 +360,24 @@
     <!-- Irrigation Schedule -->
     {% if irrigation_schedule %}
     <section class="report-section">
-        <h2>💧 Irrigation Schedule</h2>
+        <h2>💧 {{ t['title_irr_sched'] }}</h2>
         <div class="irrigation-summary">
             <div class="summary-badge">
-                <strong>{{ irrigation_schedule|length }}</strong> irrigations planned
+                <strong>{{ irrigation_schedule|length }}</strong> {{ t['badge_irrigations'] }}
             </div>
             <div class="summary-badge">
-                <strong>{{ "%.0f"|format(irrigation_schedule[0].depth_mm) }}</strong> mm depth
-            </div>
-            <div class="summary-badge">
-                <strong>{{ "%.0f"|format(irrigation_schedule[0].water_m3_per_ha) }}</strong> m³/ha
+                <strong>{{ "%.0f"|format(irrigation_schedule[0].depth_mm) }}</strong> {{ t['badge_depth'] }}
             </div>
         </div>
 
         <table class="report-table">
             <thead>
                 <tr>
-                    <th>#</th>
-                    <th>Date</th>
-                    <th>Depth (mm)</th>
-                    <th>Water (m³/ha)</th>
-                    <th>Water for Field (m³)</th>
+                    <th>{{ t['th_no'] }}</th>
+                    <th>{{ t['th_date'] }}</th>
+                    <th>{{ t['th_depth'] }}</th>
+                    <th>{{ t['th_water_ha'] }}</th>
+                    <th>{{ t['th_water_field'] }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -401,12 +398,11 @@
     <!-- Report Footer -->
     <div class="report-footer">
         <div class="disclaimer">
-            <h4>📝 Important Notes</h4>
+            <h4>📝 {{ t['title_notes'] }}</h4>
             <ul>
-                <li>This report is generated based on soil sensor readings and STCR formulas</li>
-                <li>Recommendations may vary based on actual field conditions</li>
-                <li>Consult with agricultural experts for final decision making</li>
-                <li>Keep this report for future reference and comparison</li>
+                <li>{{ t['note_1'] }}</li>
+                <li>{{ t['note_2'] }}</li>
+                <li>{{ t['note_3'] }}</li>
             </ul>
         </div>
 
@@ -419,7 +415,7 @@
                 {% endif %}
                 class="primary-btn btn-large">
                 <span class="btn-icon">📄</span>
-                Download PDF Report
+                {{ t['btn_download_pdf'] }}
             </a>
             <a
                 {% if report_id %}
@@ -429,7 +425,7 @@
                 {% endif %}
                 class="secondary-btn">
                 <span class="btn-icon">📝</span>
-                Download Word Report
+                {{ t['btn_download_word'] }}
             </a>
         </div>
     </div>
@@ -830,29 +826,20 @@
 
 <script>
     function openTab(tabName) {
-        // Hide all tab contents
         const tabContents = document.getElementsByClassName('tab-content');
         for (let i = 0; i < tabContents.length; i++) {
             tabContents[i].classList.remove('active');
         }
 
-        // Remove active class from all buttons
         const tabButtons = document.getElementsByClassName('tab-button');
         for (let i = 0; i < tabButtons.length; i++) {
             tabButtons[i].classList.remove('active');
         }
 
-        // Show the specific tab content and activate the button
         document.getElementById(tabName).classList.add('active');
         event.currentTarget.classList.add('active');
     }
 
-    // Add print functionality
-    function printReport() {
-        window.print();
-    }
-
-    // Add animation to summary cards on load
     document.addEventListener('DOMContentLoaded', function() {
         const cards = document.querySelectorAll('.summary-card');
         cards.forEach((card, index) => {
