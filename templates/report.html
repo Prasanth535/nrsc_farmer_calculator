@@ -825,6 +825,28 @@
 </style>
 
 <script>
+    // Build schedule tasks for Android (fertilizer + irrigation)
+    const androidTasks = [
+        {% if fert_schedule %}
+            {% for fs in fert_schedule %}
+            {
+                date: "{{ fs.date }}",
+                title: "{{ (t['title_fert_sched'] ~ ' - ' ~ fs.stage)|replace('\"','\\\"') }}",
+                message: "N: {{ '%.2f'|format(fs.N) }} kg/ha, P₂O₅: {{ '%.2f'|format(fs.P2O5) }} kg/ha, K₂O: {{ '%.2f'|format(fs.K2O) }} kg/ha"
+            }{% if not loop.last or irrigation_schedule %},{% endif %}
+            {% endfor %}
+        {% endif %}
+        {% if irrigation_schedule %}
+            {% for irr in irrigation_schedule %}
+            {
+                date: "{{ irr.date }}",
+                title: "{{ (t['title_irr_sched'] ~ ' - Irrigation ' ~ irr.no)|replace('\"','\\\"') }}",
+                message: "Depth: {{ '%.1f'|format(irr.depth_mm) }} mm, Water: {{ '%.1f'|format(irr.water_m3_per_ha) }} m³/ha, {{ '%.1f'|format(irr.water_m3_field) }} m³ for field"
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        {% endif %}
+    ];
+
     function openTab(tabName) {
         const tabContents = document.getElementsByClassName('tab-content');
         for (let i = 0; i < tabContents.length; i++) {
@@ -853,6 +875,39 @@
                 card.style.transform = 'translateY(0)';
             }, index * 100);
         });
+
+        // Try to send schedule tasks to Android app for notifications (fert + irrigation)
+        try {
+            if (window.AndroidNative && typeof AndroidNative.scheduleTask === 'function' && Array.isArray(androidTasks)) {
+                androidTasks.forEach(function(task) {
+                    if (task && task.date) {
+                        AndroidNative.scheduleTask(
+                            task.date,
+                            task.title || 'Field activity',
+                            task.message || ''
+                        );
+                    }
+                });
+            }
+        } catch (e) {
+            console.log('AndroidNative.scheduleTask error', e);
+        }
+
+        // 🔔 Special sowing date reminder – only ON sowing date, open this report page
+        {% if report_id and crop.sowing_date %}
+        try {
+            if (window.AndroidNative && typeof AndroidNative.scheduleSowingTask === 'function') {
+                AndroidNative.scheduleSowingTask(
+                    "{{ crop.sowing_date }}",
+                    "Sowing - {{ crop.crop|replace('\"','\\\"') }}",
+                    "Sowing date for {{ crop.crop|replace('\"','\\\"') }} ({{ crop.variety|replace('\"','\\\"') }})",
+                    window.location.href
+                );
+            }
+        } catch (e) {
+            console.log('AndroidNative.scheduleSowingTask error', e);
+        }
+        {% endif %}
     });
 </script>
 {% endblock %}
