@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang_code }}">
 <head>
     <meta charset="UTF-8">
-    <title>NRSC Farmer Advisor - Smart Agriculture Solutions</title>
+    <title>{{ t['app_title'] }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="NRSC Farmer Advisor - Advanced soil testing and crop recommendation system">
+    <meta name="description" content="{{ t['app_title'] }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,10 +21,10 @@
     <header class="header">
         <div class="container">
             <div class="logo-title">
-                <img src="{{ url_for('static', filename='app_logo.png') }}" alt="NRSC Farmer Advisor Logo" class="logo">
+                <img src="{{ url_for('static', filename='app_logo.png') }}" alt="Logo" class="logo">
                 <div class="header-text">
-                    <h1>NRSC Farmer Advisor</h1>
-                    <p class="tagline">Smart Agriculture • Precision Farming • Sustainable Growth</p>
+                    <h1>{{ t['header_title'] }}</h1>
+                    <p class="tagline">{{ t['header_tagline'] }}</p>
                 </div>
             </div>
         </div>
@@ -39,9 +39,9 @@
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
-                <p>&copy; 2025 NRSC Farmer Advisor. Empowering farmers with technology.</p>
+                <p>{{ t['footer_text'] }}</p>
                 <div class="footer-links">
-                    <span>Developed with ❤️ for Indian Agriculture</span>
+                    <span>{{ t['footer_dev'] }}</span>
                 </div>
             </div>
         </div>
@@ -50,7 +50,7 @@
     <!-- Loading Spinner -->
     <div id="loadingSpinner" class="loading-spinner" style="display: none;">
         <div class="spinner"></div>
-        <p>Processing your request...</p>
+        <p>{{ t['loading_text'] }}</p>
     </div>
 
     <script>
@@ -89,9 +89,9 @@
         // Handle page visibility changes
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
-                document.title = 'Come back to NRSC Farmer Advisor';
+                document.title = "{{ t['come_back_title'] }}";
             } else {
-                document.title = 'NRSC Farmer Advisor - Smart Agriculture Solutions';
+                document.title = "{{ t['app_title'] }}";
             }
         });
     </script>
