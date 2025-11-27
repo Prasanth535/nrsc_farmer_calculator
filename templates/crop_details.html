@@ -2,27 +2,27 @@
 {% block content %}
 <div class="card">
     <div class="form-header">
-        <h2>Crop & Soil Information</h2>
-        <p class="form-subtitle">Provide details about your crop and land for personalized recommendations</p>
+        <h2>{{ t['title_crop_info'] }}</h2>
+        <p class="form-subtitle">{{ t['subtitle_crop'] }}</p>
     </div>
 
     <div class="progress-indicator">
         <div class="progress-steps">
             <div class="step completed">
                 <div class="step-number">✓</div>
-                <span class="step-label">Farmer Details</span>
+                <span class="step-label">{{ t['step_1'] }}</span>
             </div>
             <div class="step active">
                 <div class="step-number">2</div>
-                <span class="step-label">Crop & Soil</span>
+                <span class="step-label">{{ t['step_2'] }}</span>
             </div>
             <div class="step">
                 <div class="step-number">3</div>
-                <span class="step-label">Soil Testing</span>
+                <span class="step-label">{{ t['step_3'] }}</span>
             </div>
             <div class="step">
                 <div class="step-number">4</div>
-                <span class="step-label">Results</span>
+                <span class="step-label">{{ t['step_4'] }}</span>
             </div>
         </div>
     </div>
@@ -30,79 +30,79 @@
     <form method="post" class="form-grid" id="cropForm">
         <!-- Location Section -->
         <div class="form-section">
-            <h3 class="section-title">📍 Location Information</h3>
+            <h3 class="section-title">📍 {{ t['sect_gps'] }}</h3>
             
             <div class="form-group">
-                <label for="gps_location" class="form-label">GPS Coordinates</label>
+                <label for="gps_location" class="form-label">{{ t['lbl_gps_coords'] }}</label>
                 <div class="input-with-action">
                     <input type="text" id="gps_location" name="gps_location"
                            value="{{ crop.get('gps_location', '') }}"
-                           placeholder="Latitude, Longitude will appear here"
+                           placeholder="{{ t['ph_gps_coords'] }}"
                            readonly class="form-input">
                     <button type="button" id="getLocationBtn" class="action-btn">
                         <span class="btn-icon">📍</span>
-                        Get GPS
+                        {{ t['btn_get_gps'] }}
                     </button>
                 </div>
-                <small class="input-hint">Click "Get GPS" to automatically fetch your location</small>
+                <small class="input-hint">{{ t['hint_gps_auto'] }}</small>
             </div>
 
             <div class="form-group">
-                <label for="gps_address" class="form-label">Full Address</label>
+                <label for="gps_address" class="form-label">{{ t['lbl_address'] }}</label>
                 <textarea id="gps_address" name="gps_address" rows="3" readonly
-                          placeholder="Address will be automatically filled after GPS detection"
+                          placeholder="{{ t['ph_address'] }}"
                           class="form-input">{{ crop.get('gps_address', '') }}</textarea>
             </div>
 
             <div class="form-group">
-                <label for="soil_type" class="form-label">Soil Type</label>
+                <label for="soil_type" class="form-label">{{ t['lbl_soil_type'] }}</label>
                 <select name="soil_type" id="soil_type" required class="form-input">
-                    <option value="">Select Soil Type</option>
+                    <option value="">{{ t['opt_select_soil'] }}</option>
                     {% for soil in telangana_soils %}
                         <option value="{{ soil }}"
                             {% if crop.get('soil_type') == soil %}selected{% endif %}>
-                            {{ soil }}
+                            {{ T(soil) }}
                         </option>
                     {% endfor %}
                 </select>
-                <small class="input-hint">Select the predominant soil type in your field</small>
+                <small class="input-hint">{{ t['hint_soil'] }}</small>
             </div>
         </div>
 
         <!-- Crop Information Section -->
         <div class="form-section">
-            <h3 class="section-title">🌾 Crop Details</h3>
+            <h3 class="section-title">🌾 {{ t['sect_crop_details'] }}</h3>
             
             <div class="form-group">
-                <label for="cropSelect" class="form-label">Crop Type</label>
+                <label for="cropSelect" class="form-label">{{ t['lbl_crop_type'] }}</label>
                 <select name="crop" id="cropSelect" required class="form-input">
-                    <option value="">Select Crop</option>
+                    <option value="">{{ t['opt_select_crop'] }}</option>
                     {% for c in crops %}
                         <option value="{{ c }}"
                             {% if crop.get('crop') == c %}selected{% endif %}>
-                            {{ c }}
+                            {{ T(c) }}
                         </option>
                     {% endfor %}
                 </select>
             </div>
 
             <div class="form-group">
-                <label for="varietySelect" class="form-label">Crop Variety</label>
+                <label for="varietySelect" class="form-label">{{ t['lbl_variety'] }}</label>
                 <select name="variety" id="varietySelect" required class="form-input">
-                    <option value="">Select Variety</option>
+                    <option value="">{{ t['opt_select_variety'] }}</option>
                 </select>
-                <small class="input-hint">Choose the specific variety you're planting</small>
+                <small class="input-hint">{{ t['hint_variety'] }}</small>
             </div>
 
             <div class="info-grid">
                 <div class="form-group">
-                    <label for="season" class="form-label">Season</label>
+                    <label for="season" class="form-label">{{ t['lbl_season'] }}</label>
                     <input type="text" id="season" value="{{ crop.get('season', '') }}" 
                            readonly class="form-input info-field">
                 </div>
 
                 <div class="form-group">
-                    <label for="duration" class="form-label">Duration (Days)</label>
+                    <label for="duration" class="form-label">{{ t['lbl_duration'] }}</label>
                     <input type="number" name="duration" id="duration"
                            min="0" value="{{ crop.get('duration', '') }}" 
                            readonly class="form-input info-field">
@@ -110,53 +110,53 @@
             </div>
 
             <div class="form-group">
-                <label for="recommended_npk" class="form-label">Recommended NPK (kg/ha)</label>
+                <label for="recommended_npk" class="form-label">{{ t['lbl_rec_npk'] }}</label>
                 <input type="text" name="recommended_npk" id="recommended_npk"
                        value="{{ crop.get('recommended_npk', '') }}" 
                        readonly class="form-input info-field">
-                <small class="input-hint">Based on crop variety and season</small>
+                <small class="input-hint">{{ t['hint_rec_npk'] }}</small>
             </div>
         </div>
 
         <!-- Field & Target Information -->
         <div class="form-section">
-            <h3 class="section-title">📐 Field & Target Information</h3>
+            <h3 class="section-title">📐 {{ t['sect_field_target'] }}</h3>
             
             <div class="form-group">
-                <label for="land_area" class="form-label">Land Area (Hectares)</label>
+                <label for="land_area" class="form-label">{{ t['lbl_land_area'] }}</label>
                 <input type="number" step="0.01" min="0" name="land_area" id="land_area"
                        value="{{ crop.get('land_area', '') }}" 
-                       placeholder="Enter land area in hectares"
+                       placeholder="{{ t['ph_land_area'] }}"
                        class="form-input" required>
-                <small class="input-hint">1 hectare = 2.47 acres</small>
+                <small class="input-hint">{{ t['hint_land_area'] }}</small>
             </div>
 
             <div class="form-group">
-                <label for="target_yield_q" class="form-label">Target Yield (Quintal/Hectare)</label>
+                <label for="target_yield_q" class="form-label">{{ t['lbl_target_yield'] }}</label>
                 <input type="number" step="0.1" name="target_yield_q" id="target_yield_q"
                        value="{% if crop.get('target_yield_q') is not none %}{{ crop.get('target_yield_q') }}{% endif %}"
-                       placeholder="Enter expected yield"
+                       placeholder="{{ t['ph_target_yield'] }}"
                        class="form-input">
-                <small class="input-hint">Optional: For STCR-based precise recommendations</small>
+                <small class="input-hint">{{ t['hint_target_yield'] }}</small>
             </div>
 
             <div class="form-group">
-                <label for="sowing_date" class="form-label">Sowing Date</label>
+                <label for="sowing_date" class="form-label">{{ t['lbl_sowing_date'] }}</label>
                 <input type="date" name="sowing_date" id="sowing_date"
                        value="{{ crop.get('sowing_date', '') }}" 
                        class="form-input" required>
-                <small class="input-hint">Select planned or actual sowing date</small>
+                <small class="input-hint">{{ t['hint_sowing_date'] }}</small>
             </div>
         </div>
 
         <div class="form-actions">
             <button type="submit" class="primary-btn btn-large">
                 <span class="btn-icon">🔬</span>
-                Proceed to Soil Testing
+                {{ t['btn_proceed_soil'] }}
             </button>
             
             <div class="form-help">
-                <p>💡 <strong>Pro Tip:</strong> Accurate GPS and soil type information ensures precise recommendations.</p>
+                <p>{{ t['tip_crop_page'] }}</p>
             </div>
         </div>
     </form>
@@ -421,12 +421,33 @@
 </style>
 
 <script>
+    // JS Translations
+    const MSGS = {
+        locDenied: "{{ t['msg_loc_denied'] }}",
+        locUnavailable: "{{ t['msg_loc_unavailable'] }}",
+        locTimeout: "{{ t['msg_loc_timeout'] }}",
+        addrSuccess: "{{ t['msg_addr_success'] }}",
+        addrFail: "{{ t['msg_addr_fail'] }}",
+        cropLoad: "{{ t['msg_crop_load'] }}",
+        cropFail: "{{ t['msg_crop_fail'] }}"
+    };
+
     // ---------- Data from backend ----------
     const cropVarietyMap = {{ crop_variety_map|tojson|safe }};
     const cropInfoUrl = "{{ url_for('crop_info_api') }}";
     const initialCrop = "{{ crop.get('crop', '') }}";
     const initialVariety = "{{ crop.get('variety', '') }}";
     const initialAddress = `{{ crop.get('gps_address', '') }}`;
+
+    // NEW: Generate Variety Translations Dictionary from Server
+    // This loops through all crops and varieties in Jinja and translates them using T()
+    const varietyTranslations = {
+        {% for crop_name, varieties in crop_variety_map.items() %}
+            {% for variety in varieties %}
+                {{ variety|tojson }}: {{ T(variety)|tojson }},
+            {% endfor %}
+        {% endfor %}
+    };
 
     // ---------- GPS Location with Enhanced UI ----------
     document.getElementById('getLocationBtn').addEventListener('click', function (e) {
@@ -458,13 +479,13 @@
                 let errorMsg = "Unable to fetch location: ";
                 switch(err.code) {
                     case err.PERMISSION_DENIED:
-                        errorMsg += "Location access denied. Please allow location access.";
+                        errorMsg += MSGS.locDenied;
                         break;
                     case err.POSITION_UNAVAILABLE:
-                        errorMsg += "Location information unavailable.";
+                        errorMsg += MSGS.locUnavailable;
                         break;
                     case err.TIMEOUT:
-                        errorMsg += "Location request timed out.";
+                        errorMsg += MSGS.locTimeout;
                         break;
                     default:
                         errorMsg += err.message;
@@ -498,12 +519,12 @@
         .then(data => {
             const addr = data.display_name || "Address not found";
             document.getElementById('gps_address').value = addr;
-            showNotification('Address fetched successfully!', 'success');
+            showNotification(MSGS.addrSuccess, 'success');
         })
         .catch(err => {
             console.error('Geocoding error:', err);
             document.getElementById('gps_address').value = "Unable to fetch address";
-            showNotification('Could not fetch address details', 'warning');
+            showNotification(MSGS.addrFail, 'warning');
         });
     }
 
@@ -515,7 +536,7 @@
         varietySelect.innerHTML = "";
         const optDefault = document.createElement('option');
         optDefault.value = "";
-        optDefault.textContent = "Select Variety";
+        optDefault.textContent = "{{ t['opt_select_variety'] }}";
         optDefault.disabled = true;
         varietySelect.appendChild(optDefault);
 
@@ -528,7 +549,10 @@
         cropVarietyMap[cropName].forEach(function (v) {
             const opt = document.createElement('option');
             opt.value = v;
-            opt.textContent = v;
+            
+            // UPDATED: Look up translation, fall back to English 'v' if not found
+            opt.textContent = varietyTranslations[v] || v;
+            
             if (selectedVariety && selectedVariety === v) {
                 opt.selected = true;
             }
@@ -576,11 +600,11 @@
                 document.getElementById('duration').value = data.duration || "";
                 document.getElementById('recommended_npk').value = data.recommended_npk || "";
                 
-                showNotification('Crop information loaded successfully!', 'success');
+                showNotification(MSGS.cropLoad, 'success');
             })
             .catch(err => {
                 console.error(err);
-                showNotification('Failed to load crop information', 'error');
+                showNotification(MSGS.cropFail, 'error');
             })
             .finally(() => {
                 hideLoading();
