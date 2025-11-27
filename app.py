@@ -36,8 +36,41 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from sqlalchemy.exc import SQLAlchemyError
 
+# --- NEW IMPORTS FOR LANGUAGES ---
+from languages import TRANSLATIONS
+from crop_translations import get_translated_text
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "CHANGE_THIS_SECRET_KEY")
+
+# ================== CONTEXT PROCESSORS (LANGUAGE INJECTION) ==================
+
+@app.context_processor
+def inject_translations():
+    """
+    1. Checks the session for selected language (en, te, hi).
+    2. Injects the corresponding dictionary as 't' into HTML.
+    Usage in HTML: {{ t['welcome_title'] }}
+    """
+    lang_code = session.get("language", "en")
+    # Fallback to English if code not found in our dictionary
+    if lang_code not in TRANSLATIONS:
+        lang_code = "en"
+    
+    return dict(t=TRANSLATIONS[lang_code], lang_code=lang_code)
+
+@app.context_processor
+def inject_data_translation():
+    """
+    Injects a helper function 'T' to translate dynamic data 
+    (like 'Rice', 'Red Soil') found in databases/excel.
+    Usage in HTML: {{ T(crop_name) }}
+    """
+    def translate_data(text):
+        lang_code = session.get("language", "en")
+        return get_translated_text(text, lang_code)
+    
+    return dict(T=translate_data)
 
 # ================== DATABASE (Neon PostgreSQL via SQLAlchemy) ==================
 
@@ -79,7 +112,6 @@ class FieldSession(Base):
     """
     One record per calculation/session.
     Stores GPS, address, land area and some context.
-    (Still used only for export_csv – unchanged behaviour.)
     """
     __tablename__ = "field_sessions"
 
@@ -160,10 +192,6 @@ if engine is not None:
 # ================== DB HELPERS ==================
 
 def save_session_to_db(crop, farmer, readings_list):
-    """
-    Old behaviour: save GPS, full address, land area and all sensor readings
-    into Neon via SQLAlchemy for CSV export.
-    """
     if SessionLocal is None:
         print("Database not configured; skipping FieldSession save.")
         return
@@ -211,9 +239,6 @@ def save_session_to_db(crop, farmer, readings_list):
 
 def save_report_to_db(farmer, crop, averages, calculated,
                       fert_schedule, irrigation_schedule):
-    """
-    Save a full report snapshot. Returns report_id or None.
-    """
     if SessionLocal is None:
         print("Database not configured; skipping Report save.")
         return None
@@ -247,10 +272,6 @@ def save_report_to_db(farmer, crop, averages, calculated,
 
 
 def load_report_context(report_id):
-    """
-    Load a report from DB and return context dict like the session-based one.
-    If not found / DB off / JSON error, returns None.
-    """
     if SessionLocal is None or report_id is None:
         return None
 
@@ -317,9 +338,6 @@ def load_report_context(report_id):
 
 
 def get_index_reports(limit=5):
-    """
-    Fetch recent reports for home page.
-    """
     if SessionLocal is None:
         return []
 
