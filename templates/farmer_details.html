@@ -2,54 +2,54 @@
 {% block content %}
 <div class="card">
     <div class="form-header">
-        <h2>Farmer Registration</h2>
-        <p class="form-subtitle">Please provide your details to get personalized agricultural recommendations</p>
+        <h2>{{ t['title_farmer_reg'] }}</h2>
+        <p class="form-subtitle">{{ t['subtitle_farmer'] }}</p>
     </div>
 
     <div class="progress-indicator">
         <div class="progress-steps">
             <div class="step active">
                 <div class="step-number">1</div>
-                <span class="step-label">Farmer Details</span>
+                <span class="step-label">{{ t['step_1'] }}</span>
             </div>
             <div class="step">
                 <div class="step-number">2</div>
-                <span class="step-label">Crop & Soil</span>
+                <span class="step-label">{{ t['step_2'] }}</span>
             </div>
             <div class="step">
                 <div class="step-number">3</div>
-                <span class="step-label">Soil Testing</span>
+                <span class="step-label">{{ t['step_3'] }}</span>
             </div>
             <div class="step">
                 <div class="step-number">4</div>
-                <span class="step-label">Results</span>
+                <span class="step-label">{{ t['step_4'] }}</span>
             </div>
         </div>
     </div>
 
     <form method="post" class="form-grid" id="farmerForm">
         <div class="form-section">
-            <h3 class="section-title">Personal Information</h3>
+            <h3 class="section-title">{{ t['sect_personal'] }}</h3>
             
             <label class="form-label">
-                <span class="label-text">Full Name</span>
+                <span class="label-text">{{ t['lbl_fullname'] }}</span>
                 <div class="input-with-mic">
                     <input type="text" id="name" name="name" value="{{ farmer.get('name', '') }}" 
-                           placeholder="Enter your full name"
+                           placeholder="{{ t['ph_fullname'] }}"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('name')" 
                             title="Voice Input">
                         🎤
                     </button>
                 </div>
-                <small class="input-hint">We respect your privacy. Your data is secure.</small>
+                <small class="input-hint">{{ t['hint_privacy'] }}</small>
             </label>
 
             <label class="form-label">
-                <span class="label-text">Mobile Number</span>
+                <span class="label-text">{{ t['lbl_mobile'] }}</span>
                 <div class="input-with-mic">
                     <input type="tel" id="mobile" name="mobile" value="{{ farmer.get('mobile', '') }}" 
-                           placeholder="Enter 10-digit mobile number" 
+                           placeholder="{{ t['ph_mobile'] }}" 
                            pattern="[0-9]{10}"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('mobile')"
@@ -57,18 +57,18 @@
                         🎤
                     </button>
                 </div>
-                <small class="input-hint">For important updates and recommendations</small>
+                <small class="input-hint">{{ t['hint_mobile'] }}</small>
             </label>
         </div>
 
         <div class="form-section">
-            <h3 class="section-title">Location Details</h3>
+            <h3 class="section-title">{{ t['sect_location'] }}</h3>
             
             <label class="form-label">
-                <span class="label-text">Village Name</span>
+                <span class="label-text">{{ t['lbl_village'] }}</span>
                 <div class="input-with-mic">
                     <input type="text" id="village" name="village" value="{{ farmer.get('village', '') }}" 
-                           placeholder="Enter your village name"
+                           placeholder="{{ t['ph_village'] }}"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('village')"
                             title="Voice Input">
@@ -78,10 +78,10 @@
             </label>
 
             <label class="form-label">
-                <span class="label-text">Mandal Name</span>
+                <span class="label-text">{{ t['lbl_mandal'] }}</span>
                 <div class="input-with-mic">
                     <input type="text" id="mandal" name="mandal" value="{{ farmer.get('mandal', '') }}" 
-                           placeholder="Enter your mandal name"
+                           placeholder="{{ t['ph_mandal'] }}"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('mandal')"
                             title="Voice Input">
@@ -91,10 +91,10 @@
             </label>
 
             <label class="form-label">
-                <span class="label-text">District Name</span>
+                <span class="label-text">{{ t['lbl_district'] }}</span>
                 <div class="input-with-mic">
                     <input type="text" id="district" name="district" value="{{ farmer.get('district', '') }}" 
-                           placeholder="Enter your district name"
+                           placeholder="{{ t['ph_district'] }}"
                            class="form-input">
                     <button type="button" class="mic-btn" onclick="startDictation('district')"
                             title="Voice Input">
@@ -107,11 +107,11 @@
         <div class="form-actions">
             <button type="submit" class="primary-btn btn-large">
                 <span class="btn-icon">➡️</span>
-                Proceed to Crop Details
+                {{ t['btn_proceed_crop'] }}
             </button>
             
             <div class="form-help">
-                <p>💡 <strong>Need help?</strong> Use the microphone button for voice input in supported browsers.</p>
+                <p>{{ t['hint_mic_help'] }}</p>
             </div>
         </div>
     </form>
@@ -296,6 +296,12 @@
 </style>
 
 <script>
+    // JS Translations injected from Flask
+    const MSGS = {
+        voiceSuccess: "{{ t['msg_voice_success'] }}",
+        voiceFail: "{{ t['msg_voice_fail'] }}"
+    };
+
     /* Enhanced Voice Assistant using Web Speech API */
     function startDictation(fieldId) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -305,7 +311,17 @@
         }
 
         const recognition = new SpeechRecognition();
-        recognition.lang = 'en-IN';
+        
+        // Dynamic language setting based on session language
+        const appLang = "{{ lang_code }}";
+        if (appLang === 'te') {
+            recognition.lang = 'te-IN';
+        } else if (appLang === 'hi') {
+            recognition.lang = 'hi-IN';
+        } else {
+            recognition.lang = 'en-IN';
+        }
+        
         recognition.interimResults = false;
         recognition.maxAlternatives = 1;
         recognition.continuous = false;
@@ -319,30 +335,14 @@
             if (input) {
                 input.value = transcript;
                 input.focus();
-                showNotification('Voice input captured successfully!', 'success');
+                showNotification(MSGS.voiceSuccess, 'success');
             }
             micBtn.classList.remove('listening');
         };
 
         recognition.onerror = function (event) {
             console.error('Speech recognition error:', event.error);
-            let errorMessage = 'Voice input failed. ';
-            
-            switch(event.error) {
-                case 'no-speech':
-                    errorMessage += 'No speech was detected.';
-                    break;
-                case 'audio-capture':
-                    errorMessage += 'No microphone was found.';
-                    break;
-                case 'not-allowed':
-                    errorMessage += 'Microphone permission was denied.';
-                    break;
-                default:
-                    errorMessage += 'Please try again.';
-            }
-            
-            showNotification(errorMessage, 'error');
+            showNotification(MSGS.voiceFail + ' ' + event.error, 'error');
             micBtn.classList.remove('listening');
         };
 
@@ -389,16 +389,6 @@
             }
         }, 5000);
     }
-
-    // Form validation (mobile can be empty; only validate if filled)
-    document.getElementById('farmerForm').addEventListener('submit', function(e) {
-        const mobile = document.getElementById('mobile').value;
-        if (mobile && !/^\d{10}$/.test(mobile)) {
-            e.preventDefault();
-            showNotification('Please enter a valid 10-digit mobile number.', 'error');
-            document.getElementById('mobile').focus();
-        }
-    });
 
     // Add input animations
     document.addEventListener('DOMContentLoaded', function() {
