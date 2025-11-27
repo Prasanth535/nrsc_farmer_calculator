@@ -5,60 +5,60 @@
         <div class="welcome-icon">
             <img src="{{ url_for('static', filename='app_logo.png') }}" alt="NRSC Farmer Advisor">
         </div>
-        <h2 class="center-title">Welcome to NRSC Farmer Advisor</h2>
-        <p class="welcome-subtitle">Revolutionizing Agriculture with Smart Technology</p>
+        <h2 class="center-title">{{ t['welcome_title'] }}</h2>
+        <p class="welcome-subtitle">{{ t['welcome_subtitle'] }}</p>
     </div>
 
-    <!-- Language selection (your original block) -->
+    <!-- Language selection -->
     <div class="language-section">
-        <h3 class="text-center">Choose Your Language</h3>
-        <p class="text-center mb-1">Select your preferred language to continue</p>
+        <h3 class="text-center">{{ t['choose_lang'] }}</h3>
+        <p class="text-center mb-1">{{ t['select_lang_text'] }}</p>
 
         <form method="post" class="language-form">
             <div class="language-grid">
                 <button type="submit" name="language" value="en" class="language-btn">
-                    <span class="language-flag"></span>
+                    <span class="language-flag">🇬🇧</span>
                     <span class="language-text">
                         <strong>English</strong>
-                        <small>Continue in English</small>
+                        <small>{{ t['continue_en'] }}</small>
                     </span>
                 </button>
 
                 <button type="submit" name="language" value="te" class="language-btn">
-                    <span class="language-flag"></span>
+                    <span class="language-flag">🇮🇳</span>
                     <span class="language-text">
                         <strong>తెలుగు</strong>
-                        <small>తెలుగులో కొనసాగించు</small>
+                        <small>{{ t['continue_te'] }}</small>
                     </span>
                 </button>
 
                 <button type="submit" name="language" value="hi" class="language-btn">
-                    <span class="language-flag"></span>
+                    <span class="language-flag">🇮🇳</span>
                     <span class="language-text">
                         <strong>हिन्दी</strong>
-                        <small>हिंदी में जारी रखें</small>
+                        <small>{{ t['continue_hi'] }}</small>
                     </span>
                 </button>
             </div>
         </form>
     </div>
 
-    <!-- Features (your original block) -->
+    <!-- Features -->
     <div class="features-grid">
         <div class="feature-item">
             <div class="feature-icon">📊</div>
-            <h3>Soil Analysis</h3>
-            <p>Advanced sensor-based soil testing for accurate nutrient analysis</p>
+            <h3>{{ t['feat_soil'] }}</h3>
+            <p>{{ t['feat_soil_desc'] }}</p>
         </div>
         <div class="feature-item">
             <div class="feature-icon">🌾</div>
-            <h3>Crop Recommendations</h3>
-            <p>Personalized fertilizer and crop suggestions based on soil data</p>
+            <h3>{{ t['feat_crop'] }}</h3>
+            <p>{{ t['feat_crop_desc'] }}</p>
         </div>
         <div class="feature-item">
             <div class="feature-icon">📱</div>
-            <h3>Mobile Friendly</h3>
-            <p>Works seamlessly on all devices - from mobile to desktop</p>
+            <h3>{{ t['feat_mobile'] }}</h3>
+            <p>{{ t['feat_mobile_desc'] }}</p>
         </div>
     </div>
 
@@ -66,8 +66,8 @@
     {% if reports and reports|length > 0 %}
     <div class="reports-card">
         <div class="reports-header">
-            <h3>Recent Reports</h3>
-            <small>Click a report to open it again</small>
+            <h3>{{ t['recent_reports'] }}</h3>
+            <small>{{ t['click_to_open'] }}</small>
         </div>
         <ul class="reports-list">
             {% for rep in reports %}
@@ -80,9 +80,9 @@
                         {% endif %}
                     </div>
                     <div class="reports-meta">
-                        <span>Farmer: {{ rep.farmer_name or 'Not specified' }}</span>
+                        <span>{{ t['lbl_farmer'] }}: {{ rep.farmer_name or '-' }}</span>
                         {% if rep.created_at %}
-                        <span>Created:
+                        <span>{{ t['lbl_created'] }}:
                             {{ rep.created_at.strftime('%d-%m-%Y %H:%M') }}
                         </span>
                         {% endif %}
@@ -91,7 +91,7 @@
                 <div class="reports-actions">
                     <a href="{{ url_for('report_view', report_id=rep.id) }}"
                        class="btn-primary-sm">
-                        Open report
+                        {{ t['btn_open_report'] }}
                     </a>
                 </div>
             </li>
@@ -104,7 +104,7 @@
     <div class="welcome-footer">
         <p class="text-center">
             <a href="{{ url_for('farmer_details') }}" class="btn-primary-sm">
-                Take new readings
+                {{ t['btn_take_new'] }}
             </a>
         </p>
     </div>
